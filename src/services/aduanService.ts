@@ -150,49 +150,68 @@ class AduanService {
 
     try {
       // 1. Aduan collection snapshot listener
-      onSnapshot(collection(db, 'aduan'), (snapshot) => {
-        if (!snapshot.empty) {
-          const loadedCases: AduanCase[] = [];
-          snapshot.forEach((docSnap) => {
-            const data = docSnap.data() as AduanCase;
-            loadedCases.push(data);
-          });
+      onSnapshot(
+        collection(db, 'aduan'),
+        (snapshot) => {
+          if (!snapshot.empty) {
+            const loadedCases: AduanCase[] = [];
+            snapshot.forEach((docSnap) => {
+              const data = docSnap.data() as AduanCase;
+              loadedCases.push(data);
+            });
 
-          // Maintain order by updatedAt descending
-          loadedCases.sort((a, b) => new Date(b.updatedAt || 0).getTime() - new Date(a.updatedAt || 0).getTime());
+            // Maintain order by updatedAt descending
+            loadedCases.sort((a, b) => new Date(b.updatedAt || 0).getTime() - new Date(a.updatedAt || 0).getTime());
 
-          this.cases = loadedCases;
-          this.notify();
-        } else {
-          // If Firestore is empty, seed initial cases
-          this.seedAllLocalToFirebase();
+            this.cases = loadedCases;
+            this.notify();
+          } else {
+            // If Firestore is empty, seed initial cases
+            this.seedAllLocalToFirebase();
+          }
+        },
+        (error) => {
+          console.error('🔥 Error listening to Firestore aduan collection:', error);
+          this.isFirebaseSubscribed = false;
         }
-      });
+      );
 
       // 2. Workspaces collection listener
-      onSnapshot(collection(db, 'workspaces'), (snapshot) => {
-        if (!snapshot.empty) {
-          const loadedWs: Workspace[] = [];
-          snapshot.forEach((docSnap) => {
-            loadedWs.push(docSnap.data() as Workspace);
-          });
-          this.workspaces = loadedWs;
-          this.saveWorkspacesToLocal();
+      onSnapshot(
+        collection(db, 'workspaces'),
+        (snapshot) => {
+          if (!snapshot.empty) {
+            const loadedWs: Workspace[] = [];
+            snapshot.forEach((docSnap) => {
+              loadedWs.push(docSnap.data() as Workspace);
+            });
+            this.workspaces = loadedWs;
+            this.saveWorkspacesToLocal();
+          }
+        },
+        (error) => {
+          console.error('🔥 Error listening to Firestore workspaces collection:', error);
         }
-      });
+      );
 
       // 3. Activity logs collection listener
-      onSnapshot(collection(db, 'activity_logs'), (snapshot) => {
-        if (!snapshot.empty) {
-          const loadedLogs: ActivityLog[] = [];
-          snapshot.forEach((docSnap) => {
-            loadedLogs.push(docSnap.data() as ActivityLog);
-          });
-          loadedLogs.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
-          this.activityLogs = loadedLogs;
-          this.notifyLogs();
+      onSnapshot(
+        collection(db, 'activity_logs'),
+        (snapshot) => {
+          if (!snapshot.empty) {
+            const loadedLogs: ActivityLog[] = [];
+            snapshot.forEach((docSnap) => {
+              loadedLogs.push(docSnap.data() as ActivityLog);
+            });
+            loadedLogs.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
+            this.activityLogs = loadedLogs;
+            this.notifyLogs();
+          }
+        },
+        (error) => {
+          console.error('🔥 Error listening to Firestore activity_logs collection:', error);
         }
-      });
+      );
 
       console.log('🔥 Firebase Realtime Cloud Listeners Active!');
     } catch (e) {
