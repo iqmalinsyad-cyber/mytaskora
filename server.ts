@@ -1,9 +1,12 @@
 import express from "express";
 import path from "path";
+import fs from "fs";
 import { GoogleGenAI } from "@google/genai";
 import dotenv from "dotenv";
 
 dotenv.config();
+
+const CONFIG_FILE = path.join(process.cwd(), "supabase_config.json");
 
 async function startServer() {
   const app = express();
@@ -14,6 +17,51 @@ async function startServer() {
   // API Routes
   app.get("/api/health", (_req, res) => {
     res.json({ status: "ok", timestamp: new Date().toISOString() });
+  });
+
+  // Supabase Persistent Config Endpoint
+  app.get("/api/supabase-config", (_req, res) => {
+    let url = process.env.VITE_SUPABASE_URL || process.env.SUPABASE_URL || "";
+    let anonKey = process.env.VITE_SUPABASE_ANON_KEY || process.env.SUPABASE_ANON_KEY || "";
+
+    if (fs.existsSync(CONFIG_FILE)) {
+      try {
+        const fileContent = fs.readFileSync(CONFIG_FILE, "utf-8");
+        const data = JSON.parse(fileContent);
+        if (data.url && data.anonKey) {
+          url = data.url;
+          anonKey = data.anonKey;
+        }
+      } catch (e) {
+        console.error("Error reading supabase_config.json:", e);
+      }
+    }
+
+    res.json({
+      url,
+      anonKey,
+      isConnected: Boolean(url && anonKey),
+    });
+  });
+
+  app.post("/api/supabase-config", (req, res) => {
+    try {
+      const { url, anonKey } = req.body;
+      const cleanUrl = (url || "").trim();
+      const cleanKey = (anonKey || "").trim();
+
+      const data = {
+        url: cleanUrl,
+        anonKey: cleanKey,
+        updatedAt: new Date().toISOString(),
+      };
+
+      fs.writeFileSync(CONFIG_FILE, JSON.stringify(data, null, 2), "utf-8");
+      res.json({ success: true, config: data });
+    } catch (error: any) {
+      console.error("Failed to save supabase config:", error);
+      res.status(500).json({ success: false, error: error?.message || String(error) });
+    }
   });
 
   // AI Copilot / Assistant Route using Gemini
