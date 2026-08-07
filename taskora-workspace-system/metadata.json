@@ -1,6 +1,0 @@
-{
-  "name": "TASKORA",
-  "description": "Your Smart Workspace - Sistem Pengurusan & Laporan Kes Aduan Berasaskan Workspace dengan Realtime & Supabase Integration",
-  "requestFramePermissions": [],
-  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
-}
