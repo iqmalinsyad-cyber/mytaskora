@@ -1,6 +1,6 @@
 import { AduanCase, AduanNote, AduanStatus, Workspace, SupabaseConfig, FilterOptions, ActivityLog } from '../types';
 import { INITIAL_ADUAN_CASES, INITIAL_WORKSPACES } from '../data/mockData';
-import { getSupabaseClient, getSavedSupabaseConfig } from '../lib/supabase';
+import { getSupabaseClient, getSavedSupabaseConfig, fetchServerSupabaseConfig } from '../lib/supabase';
 import { syncAllUsersToSupabase } from '../lib/auth';
 
 const ADUAN_STORAGE_KEY = 'aduan_workspace_cases_v2';
@@ -137,8 +137,15 @@ class AduanService {
 
   private pollingTimer: any = null;
 
-  public setupSupabaseSubscription() {
-    const supabase = getSupabaseClient();
+  public async setupSupabaseSubscription() {
+    let supabase = getSupabaseClient();
+    if (!supabase) {
+      await fetchServerSupabaseConfig();
+      supabase = getSupabaseClient();
+    } else {
+      fetchServerSupabaseConfig().catch(() => {});
+    }
+
     if (!supabase) return;
 
     if (this.supabaseSubscription) {
@@ -236,7 +243,18 @@ class AduanService {
           updated_at: c.updatedAt,
         });
 
-        if (!aduanErr) insertedCount++;
+        if (aduanErr) {
+          if (aduanErr.code === '42P01' || aduanErr.message?.includes('relation "public.aduan" does not exist')) {
+            return {
+              success: false,
+              count: 0,
+              error: 'Jadual "public.aduan" belum dicipta di Supabase. Sila salin dan jalankan Skrip SQL Penataan Jadual pada Supabase SQL Editor anda.'
+            };
+          }
+          console.warn('Upsert aduan warning:', aduanErr.message);
+        } else {
+          insertedCount++;
+        }
 
         // Sync Notes for this case
         if (c.catatan && c.catatan.length > 0) {
