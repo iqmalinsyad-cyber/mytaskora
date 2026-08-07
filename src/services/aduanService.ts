@@ -125,6 +125,10 @@ class AduanService {
     return [...this.diagnosticLogs];
   }
 
+  public getIsFirebaseSubscribed(): boolean {
+    return this.isFirebaseSubscribed;
+  }
+
   public addDiagnosticLog(level: DiagnosticLog['level'], message: string) {
     const log: DiagnosticLog = {
       id: `diag-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`,

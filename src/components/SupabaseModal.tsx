@@ -19,12 +19,14 @@ interface SupabaseModalProps {
   isOpen: boolean;
   onClose: () => void;
   onSimulateRealtime: () => void;
+  onOpenDiagnostics?: () => void;
 }
 
 export const SupabaseModal: React.FC<SupabaseModalProps> = ({
   isOpen,
   onClose,
-  onSimulateRealtime
+  onSimulateRealtime,
+  onOpenDiagnostics
 }) => {
   const [isSyncing, setIsSyncing] = useState(false);
   const [statusMessage, setStatusMessage] = useState<{ type: 'success' | 'error' | 'info'; text: string } | null>(null);
@@ -144,6 +146,15 @@ export const SupabaseModal: React.FC<SupabaseModalProps> = ({
                 <span className="font-bold text-slate-200">Panel Diagnostik Firebase onSnapshot</span>
               </div>
               <div className="flex items-center gap-2">
+                {onOpenDiagnostics && (
+                  <button
+                    onClick={onOpenDiagnostics}
+                    className="px-2.5 py-1 rounded bg-indigo-600 hover:bg-indigo-500 text-white font-semibold text-[11px] flex items-center gap-1 transition-all shadow-xs"
+                  >
+                    <Activity className="w-3.5 h-3.5" />
+                    <span>Diagnostik Penuh</span>
+                  </button>
+                )}
                 <span className="inline-flex items-center gap-1 text-[10px] px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">
                   <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-ping"></span>
                   Active Listener

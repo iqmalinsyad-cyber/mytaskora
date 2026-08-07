@@ -9,6 +9,7 @@ import { AduanKanban } from './components/AduanKanban';
 import { CatatanFormatView } from './components/CatatanFormatView';
 import { LaporanView } from './components/LaporanView';
 import { SupabaseModal } from './components/SupabaseModal';
+import { FirebaseDiagnostics } from './components/FirebaseDiagnostics';
 import { AduanDetailModal } from './components/AduanDetailModal';
 import { NewAduanModal } from './components/NewAduanModal';
 import { AiCopilotDrawer } from './components/AiCopilotDrawer';
@@ -94,6 +95,7 @@ export default function App() {
   const [selectedCase, setSelectedCase] = useState<AduanCase | null>(null);
   const [isNewAduanOpen, setIsNewAduanOpen] = useState(false);
   const [isSupabaseOpen, setIsSupabaseOpen] = useState(false);
+  const [isFirebaseDiagnosticsOpen, setIsFirebaseDiagnosticsOpen] = useState(false);
   const [isAiCopilotOpen, setIsAiCopilotOpen] = useState(false);
   const [isGlobalSearchOpen, setIsGlobalSearchOpen] = useState(false);
   const [isQuickActionOpen, setIsQuickActionOpen] = useState(false);
@@ -266,6 +268,7 @@ export default function App() {
           onOpenAiCopilot={() => setIsAiCopilotOpen(true)}
           onOpenGlobalSearch={() => setIsGlobalSearchOpen(true)}
           onOpenSupabaseModal={() => setIsSupabaseOpen(true)}
+          onOpenDiagnostics={() => setIsFirebaseDiagnosticsOpen(true)}
           onOpenSettings={() => setActiveTab('settings')}
           onOpenLogin={() => setIsLoginModalOpen(true)}
           onLogout={handleLogout}
@@ -402,6 +405,15 @@ export default function App() {
         isOpen={isSupabaseOpen}
         onClose={() => setIsSupabaseOpen(false)}
         onSimulateRealtime={handleSimulateRealtime}
+        onOpenDiagnostics={() => {
+          setIsSupabaseOpen(false);
+          setIsFirebaseDiagnosticsOpen(true);
+        }}
+      />
+
+      <FirebaseDiagnostics
+        isOpen={isFirebaseDiagnosticsOpen}
+        onClose={() => setIsFirebaseDiagnosticsOpen(false)}
       />
 
       <AiCopilotDrawer
