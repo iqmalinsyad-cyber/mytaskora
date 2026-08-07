@@ -101,14 +101,24 @@ export default function App() {
 
   // Subscribe to Realtime Service Updates
   useEffect(() => {
+    aduanService.setupSupabaseSubscription();
+
     const unsubscribeCases = aduanService.subscribe((updatedCases) => {
       setCases(updatedCases);
+      setWorkspaces(aduanService.getWorkspaces());
     });
 
-    setWorkspaces(aduanService.getWorkspaces());
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible') {
+        aduanService.fetchFromSupabase();
+      }
+    };
+
+    document.addEventListener('visibilitychange', handleVisibilityChange);
 
     return () => {
       unsubscribeCases();
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
     };
   }, []);
 
