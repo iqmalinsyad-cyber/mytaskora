@@ -10,13 +10,17 @@ const LOGS_STORAGE_KEY = 'aduan_workspace_logs_v2';
 
 type RealtimeListener = (cases: AduanCase[]) => void;
 type ActivityListener = (logs: ActivityLog[]) => void;
+export type DiagnosticLog = { id: string; timestamp: string; level: 'info' | 'success' | 'warn' | 'error'; message: string };
+type DiagnosticListener = (logs: DiagnosticLog[]) => void;
 
 class AduanService {
   private cases: AduanCase[] = [];
   private workspaces: Workspace[] = [];
   private activityLogs: ActivityLog[] = [];
+  private diagnosticLogs: DiagnosticLog[] = [];
   private listeners: Set<RealtimeListener> = new Set();
   private activityListeners: Set<ActivityListener> = new Set();
+  private diagnosticListeners: Set<DiagnosticListener> = new Set();
   private isFirebaseSubscribed = false;
 
   constructor() {
@@ -111,6 +115,27 @@ class AduanService {
     return () => this.activityListeners.delete(listener);
   }
 
+  public subscribeDiagnosticLogs(listener: DiagnosticListener): () => void {
+    this.diagnosticListeners.add(listener);
+    listener(this.getDiagnosticLogs());
+    return () => this.diagnosticListeners.delete(listener);
+  }
+
+  public getDiagnosticLogs(): DiagnosticLog[] {
+    return [...this.diagnosticLogs];
+  }
+
+  public addDiagnosticLog(level: DiagnosticLog['level'], message: string) {
+    const log: DiagnosticLog = {
+      id: `diag-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`,
+      timestamp: new Date().toLocaleTimeString('ms-MY', { hour12: false, hour: '2-digit', minute: '2-digit', second: '2-digit' }),
+      level,
+      message,
+    };
+    this.diagnosticLogs = [log, ...this.diagnosticLogs].slice(0, 50);
+    this.diagnosticListeners.forEach((fn) => fn(this.diagnosticLogs));
+  }
+
   private notify() {
     this.saveCasesToLocal();
     const currentCases = this.getCases();
@@ -145,14 +170,21 @@ class AduanService {
   }
 
   public setupFirebaseSubscription() {
-    if (!db || this.isFirebaseSubscribed) return;
+    if (!db) {
+      this.addDiagnosticLog('error', 'Firestore instance (db) is null. Re-check firebase-applet-config.json');
+      return;
+    }
+    if (this.isFirebaseSubscribed) return;
     this.isFirebaseSubscribed = true;
+
+    this.addDiagnosticLog('info', 'Subscribing to Firestore onSnapshot realtime listeners...');
 
     try {
       // 1. Aduan collection snapshot listener
       onSnapshot(
         collection(db, 'aduan'),
         (snapshot) => {
+          const fromCache = snapshot.metadata.hasPendingWrites;
           if (!snapshot.empty) {
             const loadedCases: AduanCase[] = [];
             snapshot.forEach((docSnap) => {
@@ -165,13 +197,16 @@ class AduanService {
 
             this.cases = loadedCases;
             this.notify();
+            this.addDiagnosticLog('success', `onSnapshot('aduan'): Received ${loadedCases.length} documents (pendingWrites: ${fromCache})`);
           } else {
+            this.addDiagnosticLog('warn', "onSnapshot('aduan'): Firestore collection empty. Auto-seeding initial cases...");
             // If Firestore is empty, seed initial cases
             this.seedAllLocalToFirebase();
           }
         },
         (error) => {
           console.error('🔥 Error listening to Firestore aduan collection:', error);
+          this.addDiagnosticLog('error', `onSnapshot('aduan') error: ${error.message}`);
           this.isFirebaseSubscribed = false;
         }
       );
@@ -187,10 +222,12 @@ class AduanService {
             });
             this.workspaces = loadedWs;
             this.saveWorkspacesToLocal();
+            this.addDiagnosticLog('success', `onSnapshot('workspaces'): Received ${loadedWs.length} workspaces`);
           }
         },
         (error) => {
           console.error('🔥 Error listening to Firestore workspaces collection:', error);
+          this.addDiagnosticLog('error', `onSnapshot('workspaces') error: ${error.message}`);
         }
       );
 
@@ -206,16 +243,19 @@ class AduanService {
             loadedLogs.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
             this.activityLogs = loadedLogs;
             this.notifyLogs();
+            this.addDiagnosticLog('success', `onSnapshot('activity_logs'): Received ${loadedLogs.length} activity logs`);
           }
         },
         (error) => {
           console.error('🔥 Error listening to Firestore activity_logs collection:', error);
+          this.addDiagnosticLog('error', `onSnapshot('activity_logs') error: ${error.message}`);
         }
       );
 
       console.log('🔥 Firebase Realtime Cloud Listeners Active!');
-    } catch (e) {
+    } catch (e: any) {
       console.error('Firebase setup subscription error:', e);
+      this.addDiagnosticLog('error', `setupFirebaseSubscription exception: ${e?.message || e}`);
     }
   }
 

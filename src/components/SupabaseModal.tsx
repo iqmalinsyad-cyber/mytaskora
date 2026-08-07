@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   X, 
   Database, 
@@ -8,9 +8,12 @@ import {
   Zap,
   CloudCheck,
   Smartphone,
-  Globe
+  Globe,
+  Terminal,
+  Activity,
+  AlertTriangle
 } from 'lucide-react';
-import { aduanService } from '../services/aduanService';
+import { aduanService, DiagnosticLog } from '../services/aduanService';
 
 interface SupabaseModalProps {
   isOpen: boolean;
@@ -25,6 +28,15 @@ export const SupabaseModal: React.FC<SupabaseModalProps> = ({
 }) => {
   const [isSyncing, setIsSyncing] = useState(false);
   const [statusMessage, setStatusMessage] = useState<{ type: 'success' | 'error' | 'info'; text: string } | null>(null);
+  const [diagnosticLogs, setDiagnosticLogs] = useState<DiagnosticLog[]>([]);
+
+  useEffect(() => {
+    if (!isOpen) return;
+    const unsubscribe = aduanService.subscribeDiagnosticLogs((logs) => {
+      setDiagnosticLogs(logs);
+    });
+    return () => unsubscribe();
+  }, [isOpen]);
 
   if (!isOpen) return null;
 
@@ -50,7 +62,7 @@ export const SupabaseModal: React.FC<SupabaseModalProps> = ({
 
   return (
     <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4 z-50 animate-fade-in overflow-y-auto">
-      <div className="bg-white rounded-2xl max-w-xl w-full shadow-2xl border border-slate-200 overflow-hidden my-8">
+      <div className="bg-white rounded-2xl max-w-2xl w-full shadow-2xl border border-slate-200 overflow-hidden my-8">
         
         {/* Header */}
         <div className="px-6 py-5 bg-gradient-to-r from-slate-900 to-slate-800 text-white flex items-center justify-between">
@@ -85,7 +97,7 @@ export const SupabaseModal: React.FC<SupabaseModalProps> = ({
             <div className="text-xs text-emerald-900 space-y-1">
               <div className="font-bold text-sm">Pangkalan Data Google Firebase Terhubung!</div>
               <p className="text-emerald-800 leading-relaxed">
-                Aplikasi anda kini menggunakan **Google Firebase Firestore** berserta saluran penyelarasan **Realtime Multi-Device Sync**. Setiap pendaftaran, perubahan status, catatan, atau aduan baharu akan dikemaskini **secara langsung (live)** di semua peranti dan pelayar lain tanpa perlu *refresh*.
+                Aplikasi anda kini menggunakan **Google Firebase Firestore** (Database: <code className="bg-emerald-100 text-emerald-950 px-1 py-0.5 rounded font-mono text-[11px]">ai-studio-aduanworkspacesy-e535aaf3-0057-4e2c-a3a0-497d3cc2caf2</code>) berserta saluran penyelarasan **Realtime Multi-Device Sync**.
               </p>
             </div>
           </div>
@@ -103,9 +115,60 @@ export const SupabaseModal: React.FC<SupabaseModalProps> = ({
             <div className="p-3.5 rounded-xl border border-slate-200 bg-slate-50 space-y-1">
               <div className="font-bold text-slate-900 flex items-center gap-2">
                 <Smartphone className="w-4 h-4 text-indigo-600" />
-                <span>Tanpa Kehilangan Data</span>
+                <span>Cloudflare Pages Ready</span>
               </div>
-              <p className="text-slate-500 text-[11px]">Segala rekod disimpan dengan selamat dalam storan Google Firebase Awan secara berterusan.</p>
+              <p className="text-slate-500 text-[11px]">Fail <code className="bg-slate-200 px-1 py-0.5 rounded text-[10px]">_redirects</code> & tetapan build sedia untuk perumahan percuma Cloudflare Pages.</p>
+            </div>
+          </div>
+
+          {/* Cloudflare Pages Deployment Guide Card */}
+          <div className="p-4 rounded-xl border border-indigo-200 bg-indigo-50/60 space-y-2 text-xs">
+            <div className="font-bold text-indigo-950 flex items-center gap-2 text-sm">
+              <CloudCheck className="w-4 h-4 text-indigo-600" />
+              <span>Langkah Deploy ke Cloudflare Pages</span>
+            </div>
+            <ul className="list-disc list-inside space-y-1 text-indigo-900 text-[11px] leading-relaxed">
+              <li><strong>Framework Preset</strong>: <code className="bg-indigo-100 px-1.5 py-0.5 rounded font-mono">Vite</code> / <code className="bg-indigo-100 px-1.5 py-0.5 rounded font-mono">None</code></li>
+              <li><strong>Build Command</strong>: <code className="bg-indigo-100 px-1.5 py-0.5 rounded font-mono">npm run build</code> atau <code className="bg-indigo-100 px-1.5 py-0.5 rounded font-mono">npm run build:pages</code></li>
+              <li><strong>Build Output Directory</strong>: <code className="bg-indigo-100 px-1.5 py-0.5 rounded font-mono">dist</code></li>
+              <li><strong>SPA Routing</strong>: Ditetapkan secara automatik melalui fail <code className="bg-indigo-100 px-1.5 py-0.5 rounded font-mono">public/_redirects</code> (<code className="bg-indigo-100 px-1.5 py-0.5 rounded font-mono">/* /index.html 200</code>)</li>
+              <li><strong>Pangkalan Data Sync</strong>: Google Firebase Firestore bersambung secara terus dari pelayar pelawat (Client-Side SDK).</li>
+            </ul>
+          </div>
+
+          {/* Diagnostic Logs Panel for Firebase onSnapshot Status */}
+          <div className="rounded-xl border border-slate-900/80 bg-slate-950 text-slate-100 overflow-hidden text-xs">
+            <div className="px-3.5 py-2.5 bg-slate-900 border-b border-slate-800 flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <Terminal className="w-4 h-4 text-emerald-400" />
+                <span className="font-bold text-slate-200">Panel Diagnostik Firebase onSnapshot</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <span className="inline-flex items-center gap-1 text-[10px] px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">
+                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-ping"></span>
+                  Active Listener
+                </span>
+              </div>
+            </div>
+
+            <div className="p-3 font-mono text-[11px] h-36 overflow-y-auto space-y-1.5 scrollbar-thin">
+              {diagnosticLogs.length === 0 ? (
+                <div className="text-slate-500 italic">Menunggu sambungan listener Firestore...</div>
+              ) : (
+                diagnosticLogs.map((log) => (
+                  <div key={log.id} className="flex items-start gap-2 leading-relaxed">
+                    <span className="text-slate-500 text-[10px] shrink-0">[{log.timestamp}]</span>
+                    <span className={
+                      log.level === 'success' ? 'text-emerald-400 font-semibold' :
+                      log.level === 'error' ? 'text-rose-400 font-semibold' :
+                      log.level === 'warn' ? 'text-amber-400' :
+                      'text-indigo-300'
+                    }>
+                      {log.message}
+                    </span>
+                  </div>
+                ))
+              )}
             </div>
           </div>
 
