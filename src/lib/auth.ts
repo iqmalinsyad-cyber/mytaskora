@@ -1,5 +1,5 @@
 import { UserProfile } from '../types';
-import { getSupabaseClient } from './supabase';
+import { getSupabaseClient, fetchServerSupabaseConfig } from './supabase';
 import { CURRENT_USER } from '../data/mockData';
 
 const AUTH_SESSION_KEY = 'WORKSPACE_AUTH_SESSION_V1';
@@ -179,7 +179,12 @@ export async function getStoredUserAccounts(): Promise<UserAccount[]> {
     saveUserAccounts(accounts);
   }
 
-  const supabase = getSupabaseClient();
+  let supabase = getSupabaseClient();
+  if (!supabase) {
+    await fetchServerSupabaseConfig();
+    supabase = getSupabaseClient();
+  }
+
   if (supabase) {
     try {
       const { data, error } = await supabase.from('users').select('*');
@@ -247,7 +252,7 @@ export function saveUserAccounts(accounts: UserAccount[]) {
 /**
  * Sync all local user accounts to Supabase
  */
-export async function syncAllUsersToSupabase(): Promise<{ success: boolean; count: number }> {
+export async function syncAllUsersToSupabase(): Promise<{ success: boolean; count: number; error?: string }> {
   const supabase = getSupabaseClient();
   if (!supabase) return { success: false, count: 0 };
 
@@ -269,7 +274,14 @@ export async function syncAllUsersToSupabase(): Promise<{ success: boolean; coun
       created_at: acc.createdAt,
       last_login: acc.lastLogin,
     });
-    if (!error) count++;
+    if (error) {
+      if (error.code === '42P01' || error.message?.includes('relation "public.users" does not exist')) {
+        console.warn('Jadual "public.users" belum dicipta di Supabase.');
+        return { success: false, count: 0, error: 'Jadual "public.users" belum dicipta di Supabase.' };
+      }
+    } else {
+      count++;
+    }
   }
   return { success: true, count };
 }
@@ -312,7 +324,11 @@ export async function authenticateUser(
   const cleanId = identifier.trim().toLowerCase();
   const inputHash = await hashPassword(plainPassword);
 
-  const supabase = getSupabaseClient();
+  let supabase = getSupabaseClient();
+  if (!supabase) {
+    await fetchServerSupabaseConfig();
+    supabase = getSupabaseClient();
+  }
 
   // 1. Try Supabase Database if connected
   if (supabase) {

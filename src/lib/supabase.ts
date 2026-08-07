@@ -3,6 +3,30 @@ import { SupabaseConfig } from '../types';
 
 const STORAGE_KEY = 'aduan_workspace_supabase_config';
 
+let supabaseInstance: SupabaseClient | null = null;
+
+export async function fetchServerSupabaseConfig(): Promise<SupabaseConfig | null> {
+  try {
+    const response = await fetch('/api/supabase-config');
+    if (response.ok) {
+      const data = await response.json();
+      if (data.url && data.anonKey) {
+        const config: SupabaseConfig = {
+          url: data.url,
+          anonKey: data.anonKey,
+          isConnected: true,
+          lastConnectedAt: new Date().toISOString(),
+        };
+        saveSupabaseConfig(config, false); // save locally without loops
+        return config;
+      }
+    }
+  } catch (e) {
+    console.warn('Could not fetch Supabase config from server:', e);
+  }
+  return null;
+}
+
 export function getSavedSupabaseConfig(): SupabaseConfig {
   try {
     const saved = localStorage.getItem(STORAGE_KEY);
@@ -35,16 +59,22 @@ export function getSavedSupabaseConfig(): SupabaseConfig {
   };
 }
 
-export function saveSupabaseConfig(config: SupabaseConfig): void {
+export function saveSupabaseConfig(config: SupabaseConfig, syncToServer = true): void {
   try {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(config));
     supabaseInstance = null; // Reset cached client instance so next call uses updated credentials
+
+    if (syncToServer) {
+      fetch('/api/supabase-config', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ url: config.url, anonKey: config.anonKey }),
+      }).catch((err) => console.error('Failed to sync Supabase config to server:', err));
+    }
   } catch (e) {
     console.error('Error saving Supabase config:', e);
   }
 }
-
-let supabaseInstance: SupabaseClient | null = null;
 
 export function getSupabaseClient(): SupabaseClient | null {
   const config = getSavedSupabaseConfig();
