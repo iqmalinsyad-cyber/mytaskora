@@ -22,7 +22,7 @@ import { SettingsView } from './components/SettingsView';
 import { LoginModal } from './components/LoginModal';
 import { AdminManagementView } from './components/AdminManagementView';
 import { LinkHubView } from './components/LinkHubView';
-import { getActiveAuthSession, clearAuthSession, recordLogout } from './lib/auth';
+import { getActiveAuthSession, clearAuthSession, recordLogout, setupUsersRealtimeSubscription } from './lib/auth';
 import { BookOpen, Users, Settings, ShieldAlert, Sparkles, Building2 } from 'lucide-react';
 
 export default function App() {
@@ -101,7 +101,8 @@ export default function App() {
 
   // Subscribe to Realtime Service Updates
   useEffect(() => {
-    aduanService.setupSupabaseSubscription();
+    aduanService.setupFirebaseSubscription();
+    setupUsersRealtimeSubscription();
 
     const unsubscribeCases = aduanService.subscribe((updatedCases) => {
       setCases(updatedCases);

@@ -1,0 +1,53 @@
+{
+  "entities": {
+    "aduan": {
+      "title": "Aduan",
+      "description": "Senarai kes aduan",
+      "properties": {
+        "id": { "type": "string" },
+        "noRujukan": { "type": "string" },
+        "subjek": { "type": "string" },
+        "kategori": { "type": "string" },
+        "keutamaan": { "type": "string" },
+        "status": { "type": "string" },
+        "pengaduNama": { "type": "string" },
+        "pengaduTelefon": { "type": "string" },
+        "pengaduEmail": { "type": "string" },
+        "pengaduAlamat": { "type": "string" },
+        "tarikhTerima": { "type": "string" },
+        "lokasi": { "type": "string" },
+        "deskripsi": { "type": "string" },
+        "tindakan": { "type": "string" },
+        "diciptaOleh": { "type": "string" },
+        "diassignedKepada": { "type": "string" },
+        "tarikhKemaskini": { "type": "string" },
+        "workspaceId": { "type": "string" }
+      }
+    },
+    "notes": {
+      "title": "Catatan Aduan",
+      "description": "Catatan aduan kes",
+      "properties": {
+        "id": { "type": "string" },
+        "caseId": { "type": "string" },
+        "penulis": { "type": "string" },
+        "kandungan": { "type": "string" },
+        "tarikh": { "type": "string" },
+        "isSistem": { "type": "boolean" }
+      }
+    },
+    "users": {
+      "title": "Pengguna",
+      "description": "Akaun pengguna",
+      "properties": {
+        "id": { "type": "string" },
+        "username": { "type": "string" },
+        "name": { "type": "string" },
+        "email": { "type": "string" },
+        "role": { "type": "string" },
+        "workspace": { "type": "string" },
+        "passwordHash": { "type": "string" }
+      }
+    }
+  }
+}

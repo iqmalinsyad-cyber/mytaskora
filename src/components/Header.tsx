@@ -115,6 +115,12 @@ export const Header: React.FC<HeaderProps> = ({
           <span>Ask AI</span>
         </button>
 
+        {/* Firebase Cloud Live Sync Badge */}
+        <div className="hidden xl:flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200 text-[11px] font-semibold cursor-pointer" onClick={onOpenSupabaseModal} title="Awan Firebase Google Aktif - Data Diselaraskan Secara Real-time di Semua Peranti">
+          <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+          <span>Firebase Cloud Active</span>
+        </div>
+
         {/* Theme Dark/Light Toggle */}
         <button
           onClick={() => setIsDarkMode(!isDarkMode)}

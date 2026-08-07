@@ -1,6 +1,7 @@
-import { AduanCase, AduanNote, AduanStatus, Workspace, SupabaseConfig, FilterOptions, ActivityLog } from '../types';
+import { AduanCase, AduanNote, AduanStatus, Workspace, FilterOptions, ActivityLog } from '../types';
 import { INITIAL_ADUAN_CASES, INITIAL_WORKSPACES } from '../data/mockData';
-import { getSupabaseClient, getSavedSupabaseConfig, fetchServerSupabaseConfig } from '../lib/supabase';
+import { db } from '../lib/firebase';
+import { collection, onSnapshot, doc, setDoc, deleteDoc, getDocs, writeBatch } from 'firebase/firestore';
 import { syncAllUsersToSupabase } from '../lib/auth';
 
 const ADUAN_STORAGE_KEY = 'aduan_workspace_cases_v2';
@@ -16,11 +17,11 @@ class AduanService {
   private activityLogs: ActivityLog[] = [];
   private listeners: Set<RealtimeListener> = new Set();
   private activityListeners: Set<ActivityListener> = new Set();
-  private supabaseSubscription: any = null;
+  private isFirebaseSubscribed = false;
 
   constructor() {
     this.initData();
-    this.setupSupabaseSubscription();
+    this.setupFirebaseSubscription();
   }
 
   private initData() {
@@ -133,251 +134,118 @@ class AduanService {
     };
     this.activityLogs = [newLog, ...this.activityLogs];
     this.notifyLogs();
+
+    if (db) {
+      setDoc(doc(db, 'activity_logs', newLog.id), newLog).catch(err => console.error('Failed sync log to Firestore:', err));
+    }
   }
 
-  private pollingTimer: any = null;
+  public setupSupabaseSubscription() {
+    this.setupFirebaseSubscription();
+  }
 
-  public async setupSupabaseSubscription() {
-    let supabase = getSupabaseClient();
-    if (!supabase) {
-      await fetchServerSupabaseConfig();
-      supabase = getSupabaseClient();
-    } else {
-      fetchServerSupabaseConfig().catch(() => {});
-    }
-
-    if (!supabase) return;
-
-    if (this.supabaseSubscription) {
-      try {
-        supabase.removeChannel(this.supabaseSubscription);
-      } catch (e) {
-        console.warn('Error removing old Supabase channel:', e);
-      }
-    }
+  public setupFirebaseSubscription() {
+    if (!db || this.isFirebaseSubscribed) return;
+    this.isFirebaseSubscribed = true;
 
     try {
-      const channelName = `aduan_realtime_channel_${Date.now().toString(36)}`;
-      this.supabaseSubscription = supabase
-        .channel(channelName)
-        .on('postgres_changes', { event: '*', schema: 'public', table: 'aduan' }, (payload) => {
-          console.log('⚡ [Realtime] Supabase Aduan event:', payload.eventType, payload);
-          this.fetchFromSupabase();
-        })
-        .on('postgres_changes', { event: '*', schema: 'public', table: 'catatan_aduan' }, (payload) => {
-          console.log('⚡ [Realtime] Supabase Catatan event:', payload.eventType, payload);
-          this.fetchFromSupabase();
-        })
-        .on('postgres_changes', { event: '*', schema: 'public', table: 'workspaces' }, (payload) => {
-          console.log('⚡ [Realtime] Supabase Workspaces event:', payload.eventType, payload);
-          this.fetchFromSupabase();
-        })
-        .on('postgres_changes', { event: '*', schema: 'public', table: 'users' }, (payload) => {
-          console.log('⚡ [Realtime] Supabase Users event:', payload.eventType, payload);
-          this.fetchFromSupabase();
-        })
-        .subscribe((status, err) => {
-          console.log(`🔌 [Supabase Realtime] Status for ${channelName}:`, status, err || '');
-          if (status === 'SUBSCRIBED') {
-            this.fetchFromSupabase();
-          }
-        });
-      
-      // Immediate initial fetch
-      this.fetchFromSupabase();
+      // 1. Aduan collection snapshot listener
+      onSnapshot(collection(db, 'aduan'), (snapshot) => {
+        if (!snapshot.empty) {
+          const loadedCases: AduanCase[] = [];
+          snapshot.forEach((docSnap) => {
+            const data = docSnap.data() as AduanCase;
+            loadedCases.push(data);
+          });
 
-      // 10-second polling fallback to guarantee state synchronization across all sessions
-      if (this.pollingTimer) {
-        clearInterval(this.pollingTimer);
-      }
-      this.pollingTimer = setInterval(() => {
-        this.fetchFromSupabase();
-      }, 10000);
+          // Maintain order by updatedAt descending
+          loadedCases.sort((a, b) => new Date(b.updatedAt || 0).getTime() - new Date(a.updatedAt || 0).getTime());
+
+          this.cases = loadedCases;
+          this.notify();
+        } else {
+          // If Firestore is empty, seed initial cases
+          this.seedAllLocalToFirebase();
+        }
+      });
+
+      // 2. Workspaces collection listener
+      onSnapshot(collection(db, 'workspaces'), (snapshot) => {
+        if (!snapshot.empty) {
+          const loadedWs: Workspace[] = [];
+          snapshot.forEach((docSnap) => {
+            loadedWs.push(docSnap.data() as Workspace);
+          });
+          this.workspaces = loadedWs;
+          this.saveWorkspacesToLocal();
+        }
+      });
+
+      // 3. Activity logs collection listener
+      onSnapshot(collection(db, 'activity_logs'), (snapshot) => {
+        if (!snapshot.empty) {
+          const loadedLogs: ActivityLog[] = [];
+          snapshot.forEach((docSnap) => {
+            loadedLogs.push(docSnap.data() as ActivityLog);
+          });
+          loadedLogs.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
+          this.activityLogs = loadedLogs;
+          this.notifyLogs();
+        }
+      });
+
+      console.log('🔥 Firebase Realtime Cloud Listeners Active!');
     } catch (e) {
-      console.error('Supabase subscription error:', e);
+      console.error('Firebase setup subscription error:', e);
+    }
+  }
+
+  public async seedAllLocalToFirebase(): Promise<void> {
+    if (!db) return;
+    try {
+      // Seed Cases
+      for (const c of this.cases) {
+        await setDoc(doc(db, 'aduan', c.id), c);
+      }
+      // Seed Workspaces
+      for (const w of this.workspaces) {
+        await setDoc(doc(db, 'workspaces', w.id), w);
+      }
+      // Seed Logs
+      for (const l of this.activityLogs) {
+        await setDoc(doc(db, 'activity_logs', l.id), l);
+      }
+      // Seed Users
+      await syncAllUsersToSupabase();
+    } catch (e) {
+      console.error('Failed seeding to Firebase:', e);
     }
   }
 
   public async syncAllLocalToSupabase(): Promise<{ success: boolean; count: number; error?: string }> {
-    const supabase = getSupabaseClient();
-    if (!supabase) return { success: false, count: 0, error: 'Sistem belum bersambung ke Supabase.' };
-
+    if (!db) return { success: false, count: 0, error: 'Firebase Firestore tidak tersedia.' };
     try {
-      // 0. Sync Users
-      await syncAllUsersToSupabase();
-
-      // 1. Sync Workspaces
-      for (const ws of this.workspaces) {
-        await supabase.from('workspaces').upsert({
-          id: ws.id,
-          name: ws.name,
-          code: ws.code,
-          description: ws.description,
-          members_count: ws.membersCount || 1,
-          role: ws.role || 'Admin',
-        });
-      }
-
-      // 2. Sync Cases
-      let insertedCount = 0;
-      for (const c of this.cases) {
-        const { error: aduanErr } = await supabase.from('aduan').upsert({
-          id: c.id,
-          no_rujukan: c.noRujukan,
-          workspace_id: c.workspaceId,
-          tajuk: c.tajuk,
-          penerangan: c.penerangan,
-          kategori: c.kategori,
-          prioriti: c.prioriti,
-          status: c.status,
-          nama_pengadu: c.namaPengadu,
-          email_pengadu: c.emailPengadu,
-          telefon_pengadu: c.telefonPengadu,
-          lokasi: c.lokasi,
-          assignee: c.assignee,
-          tarikh_aduan: c.tarikhAduan,
-          sasaran_sla: c.sasaranSLA,
-          tarikh_selesai: c.tarikhSelesai,
-          csat_rating: c.csatRating,
-          tags: c.tags,
-          updated_at: c.updatedAt,
-        });
-
-        if (aduanErr) {
-          if (aduanErr.code === '42P01' || aduanErr.message?.includes('relation "public.aduan" does not exist')) {
-            return {
-              success: false,
-              count: 0,
-              error: 'Jadual "public.aduan" belum dicipta di Supabase. Sila salin dan jalankan Skrip SQL Penataan Jadual pada Supabase SQL Editor anda.'
-            };
-          }
-          console.warn('Upsert aduan warning:', aduanErr.message);
-        } else {
-          insertedCount++;
-        }
-
-        // Sync Notes for this case
-        if (c.catatan && c.catatan.length > 0) {
-          for (const note of c.catatan) {
-            await supabase.from('catatan_aduan').upsert({
-              id: note.id,
-              aduan_id: c.id,
-              author_name: note.authorName,
-              author_role: note.authorRole,
-              author_avatar: note.authorAvatar,
-              format_type: note.formatType,
-              title: note.title,
-              content: note.content,
-              is_internal: note.isInternal,
-              created_at: note.createdAt,
-            });
-          }
-        }
-      }
-
-      return { success: true, count: insertedCount };
+      await this.seedAllLocalToFirebase();
+      return { success: true, count: this.cases.length };
     } catch (e: any) {
-      console.error('Failed syncAllLocalToSupabase:', e);
-      return { success: false, count: 0, error: e.message || 'Ralat muat naik ke Supabase.' };
+      return { success: false, count: 0, error: e?.message || 'Ralat muat naik ke Firebase.' };
     }
   }
 
   public async fetchFromSupabase(): Promise<boolean> {
-    const supabase = getSupabaseClient();
-    if (!supabase) return false;
-
+    if (!db) return false;
     try {
-      // 1. Fetch Workspaces to ensure workspace sync
-      const { data: wsData, error: wsErr } = await supabase.from('workspaces').select('*');
-      if (!wsErr && wsData && wsData.length > 0) {
-        this.workspaces = wsData.map((w: any) => ({
-          id: w.id,
-          name: w.name,
-          code: w.code,
-          description: w.description || '',
-          membersCount: w.members_count || 1,
-          role: w.role || 'Admin',
-        }));
-        this.saveWorkspacesToLocal();
-      }
-
-      // 2. Fetch Aduan List
-      const { data: aduanList, error: aduanErr } = await supabase
-        .from('aduan')
-        .select('*')
-        .order('updated_at', { ascending: false });
-
-      if (aduanErr) {
-        console.warn('Could not fetch from Supabase table aduan:', aduanErr.message);
-        return false;
-      }
-
-      if (!aduanList) return false;
-
-      if (aduanList.length === 0) {
-        // Supabase aduan table is connected but empty. Auto-seed local cases to Supabase!
-        console.log('Supabase aduan table is empty. Auto-seeding local cases to Supabase...');
-        await this.syncAllLocalToSupabase();
+      const snap = await getDocs(collection(db, 'aduan'));
+      if (!snap.empty) {
+        const loadedCases: AduanCase[] = [];
+        snap.forEach(d => loadedCases.push(d.data() as AduanCase));
+        loadedCases.sort((a, b) => new Date(b.updatedAt || 0).getTime() - new Date(a.updatedAt || 0).getTime());
+        this.cases = loadedCases;
+        this.notify();
         return true;
       }
-
-      // 3. Fetch Catatan Aduan
-      const { data: catatanList } = await supabase
-        .from('catatan_aduan')
-        .select('*')
-        .order('created_at', { ascending: false });
-
-      const notesMap = new Map<string, AduanNote[]>();
-      if (catatanList && Array.isArray(catatanList)) {
-        catatanList.forEach((c: any) => {
-          const aduanId = c.aduan_id || c.aduanId;
-          if (!aduanId) return;
-          const noteObj: AduanNote = {
-            id: c.id,
-            aduanId,
-            authorName: c.author_name || c.authorName,
-            authorRole: c.author_role || c.authorRole,
-            authorAvatar: c.author_avatar || c.authorAvatar,
-            formatType: c.format_type || c.formatType,
-            title: c.title,
-            content: c.content,
-            isInternal: c.is_internal ?? true,
-            createdAt: c.created_at || c.createdAt,
-          };
-          if (!notesMap.has(aduanId)) {
-            notesMap.set(aduanId, []);
-          }
-          notesMap.get(aduanId)!.push(noteObj);
-        });
-      }
-
-      this.cases = aduanList.map((item: any) => ({
-        id: item.id,
-        noRujukan: item.no_rujukan || item.noRujukan,
-        workspaceId: item.workspace_id || item.workspaceId || 'ws-integriti',
-        tajuk: item.tajuk,
-        penerangan: item.penerangan,
-        kategori: item.kategori,
-        prioriti: item.prioriti,
-        status: item.status,
-        namaPengadu: item.nama_pengadu || item.namaPengadu,
-        emailPengadu: item.email_pengadu || item.emailPengadu,
-        telefonPengadu: item.telefon_pengadu || item.telefonPengadu,
-        lokasi: item.lokasi,
-        assignee: item.assignee,
-        tarikhAduan: item.tarikh_aduan || item.tarikhAduan,
-        sasaranSLA: item.sasaran_sla || item.sasaranSLA,
-        tarikhSelesai: item.tarikh_selesai || item.tarikhSelesai,
-        csatRating: item.csat_rating || item.csatRating,
-        tags: item.tags || [],
-        updatedAt: item.updated_at || item.updatedAt || new Date().toISOString(),
-        catatan: notesMap.get(item.id) || [],
-      }));
-
-      this.notify();
-      return true;
     } catch (e) {
-      console.error('Error fetching from Supabase:', e);
+      console.error('Failed fetchFromSupabase:', e);
     }
     return false;
   }
@@ -452,54 +320,11 @@ class AduanService {
     this.addLog(created.id, created.noRujukan, `Kes aduan baharu dicipta: "${created.tajuk}"`, 'Sarah Adams', 'aduan_created');
     this.notify();
 
-    // Sync to Supabase if client active
-    const supabase = getSupabaseClient();
-    if (supabase) {
+    if (db) {
       try {
-        const { error } = await supabase.from('aduan').insert({
-          id: created.id,
-          no_rujukan: created.noRujukan,
-          workspace_id: created.workspaceId,
-          tajuk: created.tajuk,
-          penerangan: created.penerangan,
-          kategori: created.kategori,
-          prioriti: created.prioriti,
-          status: created.status,
-          nama_pengadu: created.namaPengadu,
-          email_pengadu: created.emailPengadu,
-          telefon_pengadu: created.telefonPengadu,
-          lokasi: created.lokasi,
-          assignee: created.assignee,
-          tarikh_aduan: created.tarikhAduan,
-          sasaran_sla: created.sasaranSLA,
-          tags: created.tags,
-          updated_at: created.updatedAt,
-        });
-
-        if (error) {
-          console.error('Supabase insert aduan error:', error.message);
-          await supabase.from('aduan').upsert({
-            id: created.id,
-            no_rujukan: created.noRujukan,
-            workspace_id: created.workspaceId,
-            tajuk: created.tajuk,
-            penerangan: created.penerangan,
-            kategori: created.kategori,
-            prioriti: created.prioriti,
-            status: created.status,
-            nama_pengadu: created.namaPengadu,
-            email_pengadu: created.emailPengadu,
-            telefon_pengadu: created.telefonPengadu,
-            lokasi: created.lokasi,
-            assignee: created.assignee,
-            tarikh_aduan: created.tarikhAduan,
-            sasaran_sla: created.sasaranSLA,
-            tags: created.tags,
-            updated_at: created.updatedAt,
-          });
-        }
+        await setDoc(doc(db, 'aduan', created.id), created);
       } catch (e) {
-        console.error('Failed to sync new case to Supabase:', e);
+        console.error('Failed to sync new case to Firebase:', e);
       }
     }
 
@@ -525,20 +350,11 @@ class AduanService {
     this.addLog(id, updatedCase.noRujukan, `Status ditukar daripada "${oldStatus}" kepada "${newStatus}"`, authorName, 'status_change');
     this.notify();
 
-    const supabase = getSupabaseClient();
-    if (supabase) {
+    if (db) {
       try {
-        const { error } = await supabase.from('aduan').update({
-          status: newStatus,
-          updated_at: now,
-          tarikh_selesai: updatedCase.tarikhSelesai,
-        }).eq('id', id);
-
-        if (error) {
-          console.error('Supabase update status error:', error.message);
-        }
+        await setDoc(doc(db, 'aduan', id), updatedCase, { merge: true });
       } catch (e) {
-        console.error('Failed to sync status update to Supabase:', e);
+        console.error('Failed to sync status update to Firebase:', e);
       }
     }
   }
@@ -551,16 +367,11 @@ class AduanService {
     this.addLog(id, targetCase.noRujukan, `Kes aduan [${targetCase.noRujukan}] telah dipadamkan secara kekal.`, authorName, 'status_change');
     this.notify();
 
-    const supabase = getSupabaseClient();
-    if (supabase) {
+    if (db) {
       try {
-        const { error: noteErr } = await supabase.from('catatan_aduan').delete().eq('aduan_id', id);
-        if (noteErr) console.error('Supabase delete notes error:', noteErr.message);
-
-        const { error: aduanErr } = await supabase.from('aduan').delete().eq('id', id);
-        if (aduanErr) console.error('Supabase delete aduan error:', aduanErr.message);
+        await deleteDoc(doc(db, 'aduan', id));
       } catch (e) {
-        console.error('Failed to delete case from Supabase:', e);
+        console.error('Failed to delete case from Firebase:', e);
       }
     }
   }
@@ -583,29 +394,11 @@ class AduanService {
     this.addLog(aduanId, targetCase.noRujukan, `Catatan baharu ditambah: "${newNote.title}"`, newNote.authorName, 'note_added');
     this.notify();
 
-    const supabase = getSupabaseClient();
-    if (supabase) {
+    if (db) {
       try {
-        const { error } = await supabase.from('catatan_aduan').insert({
-          id: newNote.id,
-          aduan_id: aduanId,
-          author_name: newNote.authorName,
-          author_role: newNote.authorRole,
-          author_avatar: newNote.authorAvatar,
-          format_type: newNote.formatType,
-          title: newNote.title,
-          content: newNote.content,
-          is_internal: newNote.isInternal,
-          created_at: newNote.createdAt,
-        });
-
-        if (error) {
-          console.error('Supabase insert note error:', error.message);
-        }
-
-        await supabase.from('aduan').update({ updated_at: targetCase.updatedAt }).eq('id', aduanId);
+        await setDoc(doc(db, 'aduan', aduanId), targetCase, { merge: true });
       } catch (e) {
-        console.error('Failed to sync note to Supabase:', e);
+        console.error('Failed to sync note to Firebase:', e);
       }
     }
 
@@ -624,19 +417,11 @@ class AduanService {
     this.workspaces.push(newWs);
     this.saveWorkspacesToLocal();
 
-    const supabase = getSupabaseClient();
-    if (supabase) {
+    if (db) {
       try {
-        await supabase.from('workspaces').insert({
-          id: newWs.id,
-          name: newWs.name,
-          code: newWs.code,
-          description: newWs.description,
-          members_count: newWs.membersCount,
-          role: newWs.role,
-        });
+        await setDoc(doc(db, 'workspaces', newWs.id), newWs);
       } catch (e) {
-        console.error('Failed to create workspace in Supabase:', e);
+        console.error('Failed to create workspace in Firebase:', e);
       }
     }
 
@@ -687,6 +472,11 @@ class AduanService {
     this.cases = [simulated, ...this.cases];
     this.addLog(simulated.id, simulated.noRujukan, `(REALTIME) Aduan baharu diterima daripada sistem luar`, 'Sistem Realtime', 'aduan_created');
     this.notify();
+
+    if (db) {
+      setDoc(doc(db, 'aduan', simulated.id), simulated).catch(err => console.error('Simulate Firestore sync failed:', err));
+    }
+
     return simulated;
   }
 }

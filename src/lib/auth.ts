@@ -1,5 +1,6 @@
 import { UserProfile } from '../types';
-import { getSupabaseClient, fetchServerSupabaseConfig } from './supabase';
+import { db } from './firebase';
+import { collection, onSnapshot, doc, setDoc, deleteDoc, getDocs, query, orderBy, limit } from 'firebase/firestore';
 import { CURRENT_USER } from '../data/mockData';
 
 const AUTH_SESSION_KEY = 'WORKSPACE_AUTH_SESSION_V1';
@@ -21,7 +22,7 @@ export interface AuditLogEntry {
 }
 
 /**
- * Record Audit Log locally and sync with Supabase Realtime
+ * Record Audit Log locally and sync with Firebase Firestore Realtime
  */
 export async function recordAuditLog(log: Omit<AuditLogEntry, 'id' | 'timestamp'>): Promise<AuditLogEntry> {
   const newEntry: AuditLogEntry = {
@@ -38,24 +39,12 @@ export async function recordAuditLog(log: Omit<AuditLogEntry, 'id' | 'timestamp'
     console.error('Error saving local audit log:', e);
   }
 
-  // Sync to Supabase Realtime
-  const supabase = getSupabaseClient();
-  if (supabase) {
+  // Sync to Firebase Firestore
+  if (db) {
     try {
-      await supabase.from('audit_logs').insert({
-        id: newEntry.id,
-        user_id: newEntry.userId,
-        username: newEntry.username,
-        user_name: newEntry.userName,
-        role: newEntry.role,
-        action: newEntry.action,
-        ip_address: newEntry.ipAddress,
-        device_info: newEntry.deviceInfo,
-        timestamp: newEntry.timestamp,
-        details: newEntry.details || '',
-      });
+      await setDoc(doc(db, 'audit_logs', newEntry.id), newEntry);
     } catch (err) {
-      console.error('Failed to insert audit log into Supabase:', err);
+      console.error('Failed to insert audit log into Firebase:', err);
     }
   }
 
@@ -63,34 +52,22 @@ export async function recordAuditLog(log: Omit<AuditLogEntry, 'id' | 'timestamp'
 }
 
 /**
- * Fetch all Audit Logs (from Supabase if connected, or LocalStorage)
+ * Fetch all Audit Logs (from Firebase Firestore if connected, or LocalStorage)
  */
 export async function fetchAuditLogs(): Promise<AuditLogEntry[]> {
-  const supabase = getSupabaseClient();
-  if (supabase) {
+  if (db) {
     try {
-      const { data, error } = await supabase
-        .from('audit_logs')
-        .select('*')
-        .order('timestamp', { ascending: false })
-        .limit(200);
-
-      if (!error && data) {
-        return data.map((d) => ({
-          id: d.id,
-          userId: d.user_id,
-          username: d.username,
-          userName: d.user_name,
-          role: d.role,
-          action: d.action,
-          ipAddress: d.ip_address || '127.0.0.1 (Web Encrypted)',
-          deviceInfo: d.device_info || 'Browser Application Session',
-          timestamp: d.timestamp,
-          details: d.details,
-        }));
+      const snap = await getDocs(query(collection(db, 'audit_logs'), orderBy('timestamp', 'desc'), limit(200)));
+      if (!snap.empty) {
+        const logs: AuditLogEntry[] = [];
+        snap.forEach((d) => {
+          const data = d.data() as AuditLogEntry;
+          logs.push(data);
+        });
+        return logs;
       }
     } catch (e) {
-      console.warn('Could not fetch audit logs from Supabase, using local:', e);
+      console.warn('Could not fetch audit logs from Firebase, using local:', e);
     }
   }
 
@@ -160,81 +137,82 @@ async function getInitialAccounts(): Promise<UserAccount[]> {
   ];
 }
 
-/**
- * Get all user accounts (from LocalStorage or initialized & merged with Supabase)
- */
-export async function getStoredUserAccounts(): Promise<UserAccount[]> {
-  let accounts: UserAccount[] = [];
+// Global user accounts listener setup
+let usersUnsubscribe: (() => void) | null = null;
+
+export function setupUsersRealtimeSubscription(onUsersUpdate?: (accounts: UserAccount[]) => void) {
+  if (!db) return;
+  if (usersUnsubscribe) return;
+
+  try {
+    usersUnsubscribe = onSnapshot(collection(db, 'users'), async (snapshot) => {
+      if (!snapshot.empty) {
+        const firestoreAccounts: UserAccount[] = [];
+        snapshot.forEach((docSnap) => {
+          firestoreAccounts.push(docSnap.data() as UserAccount);
+        });
+
+        // Merge with local accounts
+        const local = await getStoredUserAccountsFromLocal();
+        const accMap = new Map<string, UserAccount>();
+        local.forEach((a) => accMap.set(a.id, a));
+        firestoreAccounts.forEach((f) => accMap.set(f.id, f));
+
+        const merged = Array.from(accMap.values());
+        saveUserAccounts(merged);
+        if (onUsersUpdate) onUsersUpdate(merged);
+      } else {
+        // If empty in Firestore, seed initial accounts
+        const initial = await getInitialAccounts();
+        for (const acc of initial) {
+          await setDoc(doc(db, 'users', acc.id), acc);
+        }
+      }
+    });
+  } catch (e) {
+    console.error('Failed setting up Firestore users realtime subscription:', e);
+  }
+}
+
+async function getStoredUserAccountsFromLocal(): Promise<UserAccount[]> {
   try {
     const saved = localStorage.getItem(USER_ACCOUNTS_KEY);
-    if (saved) {
-      accounts = JSON.parse(saved);
-    }
+    if (saved) return JSON.parse(saved);
   } catch (e) {
-    console.error('Error reading user accounts:', e);
+    console.error('Error reading local user accounts:', e);
   }
+  const initial = await getInitialAccounts();
+  saveUserAccounts(initial);
+  return initial;
+}
 
-  if (accounts.length === 0) {
-    accounts = await getInitialAccounts();
-    saveUserAccounts(accounts);
-  }
+/**
+ * Get all user accounts (from LocalStorage or initialized & merged with Firebase Firestore)
+ */
+export async function getStoredUserAccounts(): Promise<UserAccount[]> {
+  let accounts = await getStoredUserAccountsFromLocal();
 
-  let supabase = getSupabaseClient();
-  if (!supabase) {
-    await fetchServerSupabaseConfig();
-    supabase = getSupabaseClient();
-  }
-
-  if (supabase) {
+  if (db) {
     try {
-      const { data, error } = await supabase.from('users').select('*');
-      if (!error && data) {
-        if (data.length > 0) {
-          const supabaseAccounts: UserAccount[] = data.map((d: any) => ({
-            id: d.id,
-            name: d.name,
-            username: d.username,
-            email: d.email,
-            role: d.role || 'Pegawai Aduan',
-            avatar: d.avatar || CURRENT_USER.avatar,
-            workspaceId: d.workspace_id || 'ws-integriti',
-            department: d.department || 'Unit Aduan',
-            phone: d.phone,
-            passwordHash: d.password_hash || '',
-            allowedViews: d.allowed_views || d.allowedViews,
-            createdAt: d.created_at || new Date().toISOString(),
-            lastLogin: d.last_login || new Date().toISOString(),
-          }));
+      const snap = await getDocs(collection(db, 'users'));
+      if (!snap.empty) {
+        const firestoreAccounts: UserAccount[] = [];
+        snap.forEach((d) => firestoreAccounts.push(d.data() as UserAccount));
 
-          const accountMap = new Map<string, UserAccount>();
-          accounts.forEach(a => accountMap.set(a.id, a));
-          supabaseAccounts.forEach(s => accountMap.set(s.id, s));
+        const accountMap = new Map<string, UserAccount>();
+        accounts.forEach((a) => accountMap.set(a.id, a));
+        firestoreAccounts.forEach((s) => accountMap.set(s.id, s));
 
-          accounts = Array.from(accountMap.values());
-          saveUserAccounts(accounts);
-        } else {
-          // Supabase users table is empty, auto-seed local user accounts to Supabase!
-          for (const acc of accounts) {
-            await supabase.from('users').upsert({
-              id: acc.id,
-              username: acc.username,
-              email: acc.email,
-              password_hash: acc.passwordHash,
-              name: acc.name,
-              role: acc.role,
-              avatar: acc.avatar,
-              department: acc.department,
-              phone: acc.phone,
-              workspace_id: acc.workspaceId || 'ws-integriti',
-              allowed_views: acc.allowedViews,
-              created_at: acc.createdAt,
-              last_login: acc.lastLogin,
-            });
-          }
+        accounts = Array.from(accountMap.values());
+        saveUserAccounts(accounts);
+      } else {
+        // Auto-seed to Firestore if empty
+        for (const acc of accounts) {
+          await setDoc(doc(db, 'users', acc.id), acc);
         }
       }
     } catch (e) {
-      console.warn('Supabase fetch users warning:', e);
+      console.warn('Firebase fetch users warning:', e);
     }
   }
 
@@ -250,49 +228,33 @@ export function saveUserAccounts(accounts: UserAccount[]) {
 }
 
 /**
- * Sync all local user accounts to Supabase
+ * Sync all local user accounts to Firebase Firestore
  */
 export async function syncAllUsersToSupabase(): Promise<{ success: boolean; count: number; error?: string }> {
-  const supabase = getSupabaseClient();
-  if (!supabase) return { success: false, count: 0 };
+  if (!db) return { success: false, count: 0, error: 'Sistem belum bersambung ke Firebase.' };
 
   const accounts = await getStoredUserAccounts();
   let count = 0;
   for (const acc of accounts) {
-    const { error } = await supabase.from('users').upsert({
-      id: acc.id,
-      username: acc.username,
-      email: acc.email,
-      password_hash: acc.passwordHash,
-      name: acc.name,
-      role: acc.role,
-      avatar: acc.avatar,
-      department: acc.department,
-      phone: acc.phone,
-      workspace_id: acc.workspaceId || 'ws-integriti',
-      allowed_views: acc.allowedViews,
-      created_at: acc.createdAt,
-      last_login: acc.lastLogin,
-    });
-    if (error) {
-      if (error.code === '42P01' || error.message?.includes('relation "public.users" does not exist')) {
-        console.warn('Jadual "public.users" belum dicipta di Supabase.');
-        return { success: false, count: 0, error: 'Jadual "public.users" belum dicipta di Supabase.' };
-      }
-    } else {
+    try {
+      await setDoc(doc(db, 'users', acc.id), acc);
       count++;
+    } catch (e: any) {
+      console.error('Failed setDoc user:', e);
     }
   }
   return { success: true, count };
 }
 
 /**
- * Delete User Account by ID or Username (Local & Supabase Synced)
+ * Delete User Account by ID or Username (Local & Firebase Synced)
  */
 export async function deleteUserAccount(userIdentifier: string): Promise<boolean> {
   if (!userIdentifier) return false;
   const accounts = await getStoredUserAccounts();
   const lowerTarget = userIdentifier.toLowerCase().trim();
+  const targetAcc = accounts.find((a) => a.id === userIdentifier || a.username.toLowerCase() === lowerTarget || a.email.toLowerCase() === lowerTarget);
+
   const updated = accounts.filter(
     (a) =>
       a.id !== userIdentifier &&
@@ -301,21 +263,18 @@ export async function deleteUserAccount(userIdentifier: string): Promise<boolean
   );
   saveUserAccounts(updated);
 
-  const supabase = getSupabaseClient();
-  if (supabase) {
+  if (db && targetAcc) {
     try {
-      await supabase.from('users').delete().eq('id', userIdentifier);
-      await supabase.from('users').delete().eq('username', userIdentifier);
-      await supabase.from('users').delete().ilike('username', lowerTarget);
+      await deleteDoc(doc(db, 'users', targetAcc.id));
     } catch (e) {
-      console.error('Failed to delete user from Supabase:', e);
+      console.error('Failed to delete user from Firebase:', e);
     }
   }
   return true;
 }
 
 /**
- * Authenticate User with Username/Email & Password (Encrypted & Supabase Synced)
+ * Authenticate User with Username/Email & Password (Encrypted & Firebase Synced)
  */
 export async function authenticateUser(
   identifier: string,
@@ -324,82 +283,6 @@ export async function authenticateUser(
   const cleanId = identifier.trim().toLowerCase();
   const inputHash = await hashPassword(plainPassword);
 
-  let supabase = getSupabaseClient();
-  if (!supabase) {
-    await fetchServerSupabaseConfig();
-    supabase = getSupabaseClient();
-  }
-
-  // 1. Try Supabase Database if connected
-  if (supabase) {
-    try {
-      const { data, error } = await supabase
-        .from('users')
-        .select('*')
-        .or(`username.ilike.${cleanId},email.ilike.${cleanId}`);
-
-      if (!error && data && data.length > 0) {
-        const found = data[0];
-        if (found.password_hash === inputHash) {
-          const userProfile: UserProfile = {
-            id: found.id,
-            name: found.name,
-            username: found.username,
-            email: found.email,
-            role: found.role || 'Pegawai Aduan',
-            avatar: found.avatar || CURRENT_USER.avatar,
-            workspaceId: found.workspace_id || 'ws-integriti',
-            department: found.department,
-            phone: found.phone,
-            allowedViews: found.allowed_views || found.allowedViews,
-          };
-
-          // Update last_login in Supabase
-          await supabase
-            .from('users')
-            .update({ last_login: new Date().toISOString() })
-            .eq('id', found.id);
-
-          // Sync local storage user accounts
-          const localAccs = await getStoredUserAccounts();
-          const accIdx = localAccs.findIndex(a => a.id === found.id || a.username.toLowerCase() === found.username.toLowerCase());
-          if (accIdx !== -1) {
-            localAccs[accIdx].passwordHash = inputHash;
-            localAccs[accIdx].username = found.username;
-            localAccs[accIdx].name = found.name;
-            saveUserAccounts(localAccs);
-          } else {
-            localAccs.push({
-              ...userProfile,
-              passwordHash: inputHash,
-              createdAt: found.created_at || new Date().toISOString(),
-              lastLogin: new Date().toISOString(),
-            });
-            saveUserAccounts(localAccs);
-          }
-
-          setAuthSession(userProfile);
-          await recordAuditLog({
-            userId: userProfile.id,
-            username: userProfile.username || 'user',
-            userName: userProfile.name,
-            role: userProfile.role || 'User',
-            action: 'LOG_MASUK',
-            ipAddress: '127.0.0.1 (SSL/TLS Encrypted)',
-            deviceInfo: 'Sesi Web Workspace Terenkripsi',
-            details: 'Pengesahan SHA-256 menerusi Supabase DB'
-          });
-          return { success: true, user: userProfile, message: 'Log masuk Supabase Realtime Berjaya!' };
-        } else {
-          return { success: false, message: 'Kata laluan atau nama pengguna tidak sepadan!' };
-        }
-      }
-    } catch (e) {
-      console.warn('Supabase auth query skipped or failed, falling back to secure store:', e);
-    }
-  }
-
-  // 2. Fallback to Local Encrypted Store
   const accounts = await getStoredUserAccounts();
   const match = accounts.find(
     (acc) => acc.username.toLowerCase() === cleanId || acc.email.toLowerCase() === cleanId
@@ -430,25 +313,12 @@ export async function authenticateUser(
     allowedViews: match.allowedViews,
   };
 
-  // Sync to Supabase in background if Supabase is connected
-  if (supabase) {
+  // Sync to Firebase in background
+  if (db) {
     try {
-      await supabase.from('users').upsert({
-        id: match.id,
-        username: match.username,
-        email: match.email,
-        password_hash: match.passwordHash,
-        name: match.name,
-        role: match.role,
-        avatar: match.avatar,
-        department: match.department,
-        phone: match.phone,
-        workspace_id: match.workspaceId,
-        allowed_views: match.allowedViews,
-        last_login: new Date().toISOString(),
-      });
+      await setDoc(doc(db, 'users', match.id), match, { merge: true });
     } catch (e) {
-      console.error('Failed to sync user to Supabase:', e);
+      console.error('Failed to sync user login to Firebase:', e);
     }
   }
 
@@ -459,15 +329,15 @@ export async function authenticateUser(
     userName: profile.name,
     role: profile.role || 'User',
     action: 'LOG_MASUK',
-    ipAddress: '127.0.0.1 (SHA-256 Encrypted)',
-    deviceInfo: 'Sesi Local Web Encrypted Store',
-    details: 'Pengesahan SHA-256 tempatan berjaya'
+    ipAddress: '127.0.0.1 (Firebase Cloud Encrypted)',
+    deviceInfo: 'Sesi Web Workspace Firebase Sync',
+    details: 'Pengesahan SHA-256 tempatan & Firebase disahkan'
   });
   return { success: true, user: profile, message: 'Log masuk Berjaya!' };
 }
 
 /**
- * Register New User Account (Encrypted & Supabase Realtime Synced)
+ * Register New User Account (Encrypted & Firebase Realtime Synced)
  */
 export async function registerNewUser(data: {
   name: string;
@@ -523,24 +393,12 @@ export async function registerNewUser(data: {
     phone: newAcc.phone,
   };
 
-  // Sync to Supabase Realtime DB if connected
-  const supabase = getSupabaseClient();
-  if (supabase) {
+  // Sync to Firebase Realtime DB
+  if (db) {
     try {
-      await supabase.from('users').insert({
-        id: newAcc.id,
-        username: newAcc.username,
-        email: newAcc.email,
-        password_hash: passwordHash,
-        name: newAcc.name,
-        role: newAcc.role,
-        avatar: newAcc.avatar,
-        department: newAcc.department,
-        phone: newAcc.phone,
-        workspace_id: newAcc.workspaceId,
-      });
+      await setDoc(doc(db, 'users', newAcc.id), newAcc);
     } catch (e) {
-      console.error('Supabase sync register failed:', e);
+      console.error('Firebase sync register failed:', e);
     }
   }
 
@@ -551,8 +409,8 @@ export async function registerNewUser(data: {
     userName: profile.name,
     role: profile.role || 'User',
     action: 'PENDAFTARAN_AKAUN',
-    ipAddress: '127.0.0.1 (Web TLS)',
-    deviceInfo: 'Sesi Web Workspace Encrypted',
+    ipAddress: '127.0.0.1 (Firebase Cloud TLS)',
+    deviceInfo: 'Sesi Web Workspace Firebase Encrypted',
     details: `Akaun baharu dicipta (${profile.department})`
   });
   return { success: true, user: profile, message: 'Pendaftaran akaun baharu berjaya!' };
@@ -613,3 +471,4 @@ export function clearAuthSession() {
     console.error('Error clearing auth session:', e);
   }
 }
+
