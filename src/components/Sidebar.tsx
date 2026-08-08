@@ -66,7 +66,6 @@ export const Sidebar: React.FC<SidebarProps> = ({
 
   const systemNav = [
     { id: 'admin', label: 'Pentadbiran & Audit User', icon: ShieldCheck },
-    { id: 'supabase', label: 'Integrasi Supabase', icon: Database, action: onOpenSupabaseModal },
     { id: 'login', label: 'Log Masuk (Encrypted)', icon: Lock, action: onOpenLogin },
     { id: 'settings', label: 'Tetapan Akaun', icon: Settings },
   ].filter(item => item.id === 'login' || isAllowed(item.id));

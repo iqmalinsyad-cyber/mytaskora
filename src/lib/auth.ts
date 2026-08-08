@@ -182,18 +182,20 @@ export function setupUsersRealtimeSubscription(onUsersUpdate?: (accounts: UserAc
           firestoreAccounts.push(docSnap.data() as UserAccount);
         });
 
-        const local = await getStoredUserAccountsFromLocal();
-        const accMap = new Map<string, UserAccount>();
-        local.forEach((a) => accMap.set(a.id, a));
-        firestoreAccounts.forEach((f) => accMap.set(f.id, f));
-
-        const merged = Array.from(accMap.values());
-        saveUserAccounts(merged);
-        if (onUsersUpdate) onUsersUpdate(merged);
+        // Use Firestore as source of truth so deleted users stay deleted
+        saveUserAccounts(firestoreAccounts);
+        if (onUsersUpdate) onUsersUpdate(firestoreAccounts);
       } else {
-        const initial = await getInitialAccounts();
-        for (const acc of initial) {
-          await setDoc(doc(db, 'users', acc.id), acc);
+        const hasSeeded = localStorage.getItem('USERS_INITIAL_SEEDED_V2');
+        if (!hasSeeded) {
+          localStorage.setItem('USERS_INITIAL_SEEDED_V2', 'true');
+          const initial = await getInitialAccounts();
+          for (const acc of initial) {
+            await setDoc(doc(db, 'users', acc.id), acc);
+          }
+        } else {
+          saveUserAccounts([]);
+          if (onUsersUpdate) onUsersUpdate([]);
         }
       }
     });

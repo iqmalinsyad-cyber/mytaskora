@@ -203,9 +203,16 @@ class AduanService {
             this.notify();
             this.addDiagnosticLog('success', `onSnapshot('aduan'): Received ${loadedCases.length} documents (pendingWrites: ${fromCache})`);
           } else {
-            this.addDiagnosticLog('warn', "onSnapshot('aduan'): Firestore collection empty. Auto-seeding initial cases...");
-            // If Firestore is empty, seed initial cases
-            this.seedAllLocalToFirebase();
+            const hasSeeded = localStorage.getItem('ADUAN_INITIAL_SEEDED_V2');
+            if (!hasSeeded) {
+              localStorage.setItem('ADUAN_INITIAL_SEEDED_V2', 'true');
+              this.addDiagnosticLog('warn', "onSnapshot('aduan'): Firestore collection empty. First-time seeding initial cases...");
+              this.seedAllLocalToFirebase();
+            } else {
+              this.cases = [];
+              this.notify();
+              this.addDiagnosticLog('info', "onSnapshot('aduan'): Collection is empty.");
+            }
           }
         },
         (error) => {

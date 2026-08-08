@@ -78,8 +78,14 @@ class LinkHubService {
             this.links = list;
             this.notify();
           } else {
-            // Seed initial items to Firebase
-            this.seedToFirebase();
+            const hasSeeded = localStorage.getItem('LINKHUB_INITIAL_SEEDED_V2');
+            if (!hasSeeded) {
+              localStorage.setItem('LINKHUB_INITIAL_SEEDED_V2', 'true');
+              this.seedToFirebase();
+            } else {
+              this.links = [];
+              this.notify();
+            }
           }
         },
         (error) => {

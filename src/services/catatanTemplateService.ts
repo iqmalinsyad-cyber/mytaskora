@@ -120,8 +120,14 @@ class CatatanTemplateService {
             this.templates = list;
             this.notifyTemplates();
           } else {
-            // Seed initial templates to Firebase
-            this.seedToFirebase();
+            const hasSeeded = localStorage.getItem('CATATAN_TEMPLATES_SEEDED_V2');
+            if (!hasSeeded) {
+              localStorage.setItem('CATATAN_TEMPLATES_SEEDED_V2', 'true');
+              this.seedToFirebase();
+            } else {
+              this.templates = [];
+              this.notifyTemplates();
+            }
           }
         },
         (error) => {
