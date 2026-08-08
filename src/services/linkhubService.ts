@@ -1,6 +1,6 @@
 import { LinkItem } from '../types';
 import { INITIAL_LINK_HUB_ITEMS } from '../data/mockData';
-import { db } from '../lib/firebase';
+import { db, isSystemSeeded, markSystemAsSeeded } from '../lib/firebase';
 import { collection, onSnapshot, doc, setDoc, deleteDoc } from 'firebase/firestore';
 
 const LINK_HUB_STORAGE_KEY = 'WORKSPACE_LINK_HUB_ITEMS_V1';
@@ -65,7 +65,7 @@ class LinkHubService {
     try {
       onSnapshot(
         collection(db, 'link_hub'),
-        (snapshot) => {
+        async (snapshot) => {
           if (!snapshot.empty) {
             const list: LinkItem[] = [];
             snapshot.forEach((docSnap) => {
@@ -78,10 +78,10 @@ class LinkHubService {
             this.links = list;
             this.notify();
           } else {
-            const hasSeeded = localStorage.getItem('LINKHUB_INITIAL_SEEDED_V2');
-            if (!hasSeeded) {
-              localStorage.setItem('LINKHUB_INITIAL_SEEDED_V2', 'true');
-              this.seedToFirebase();
+            const seeded = await isSystemSeeded();
+            if (!seeded) {
+              await markSystemAsSeeded();
+              await this.seedToFirebase();
             } else {
               this.links = [];
               this.notify();

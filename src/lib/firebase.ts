@@ -1,5 +1,5 @@
 import { initializeApp, getApps, getApp, FirebaseApp } from 'firebase/app';
-import { getFirestore, Firestore, doc, getDocFromServer } from 'firebase/firestore';
+import { getFirestore, Firestore, doc, getDoc, setDoc, getDocFromServer } from 'firebase/firestore';
 import firebaseConfigData from '../../firebase-applet-config.json';
 
 let app: FirebaseApp | null = null;
@@ -56,6 +56,30 @@ try {
 
 export { app, db };
 
+export async function isSystemSeeded(): Promise<boolean> {
+  if (!db) return true;
+  try {
+    const snap = await getDoc(doc(db, '_system', 'seed_status'));
+    return snap.exists() && snap.data()?.seeded === true;
+  } catch (e) {
+    console.error('Error checking isSystemSeeded:', e);
+    return true; // Fail-safe: do not auto-seed if error occurs
+  }
+}
+
+export async function markSystemAsSeeded(): Promise<void> {
+  if (!db) return;
+  try {
+    await setDoc(doc(db, '_system', 'seed_status'), {
+      seeded: true,
+      seededAt: new Date().toISOString(),
+      version: 'v2',
+    }, { merge: true });
+  } catch (e) {
+    console.error('Error marking system as seeded:', e);
+  }
+}
+
 export function isFirebaseConnected(): boolean {
   return Boolean(db);
 }
@@ -67,5 +91,6 @@ export function getFirebaseConfigInfo() {
     isConnected: Boolean(db),
   };
 }
+
 
 

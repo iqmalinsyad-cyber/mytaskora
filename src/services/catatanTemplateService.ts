@@ -1,6 +1,6 @@
 import { FormatTemplate } from '../types';
 import { FORMAT_TEMPLATES } from '../data/mockData';
-import { db } from '../lib/firebase';
+import { db, isSystemSeeded, markSystemAsSeeded } from '../lib/firebase';
 import { collection, onSnapshot, doc, setDoc, deleteDoc } from 'firebase/firestore';
 
 const TEMPLATES_STORAGE_KEY = 'WORKSPACE_CATATAN_FORMATS_V2';
@@ -111,7 +111,7 @@ class CatatanTemplateService {
       // 1. Templates collection listener
       onSnapshot(
         collection(db, 'catatan_templates'),
-        (snapshot) => {
+        async (snapshot) => {
           if (!snapshot.empty) {
             const list: FormatTemplate[] = [];
             snapshot.forEach((docSnap) => {
@@ -120,10 +120,10 @@ class CatatanTemplateService {
             this.templates = list;
             this.notifyTemplates();
           } else {
-            const hasSeeded = localStorage.getItem('CATATAN_TEMPLATES_SEEDED_V2');
-            if (!hasSeeded) {
-              localStorage.setItem('CATATAN_TEMPLATES_SEEDED_V2', 'true');
-              this.seedToFirebase();
+            const seeded = await isSystemSeeded();
+            if (!seeded) {
+              await markSystemAsSeeded();
+              await this.seedToFirebase();
             } else {
               this.templates = [];
               this.notifyTemplates();

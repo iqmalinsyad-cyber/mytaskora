@@ -1,5 +1,5 @@
 import { UserProfile } from '../types';
-import { db } from './firebase';
+import { db, isSystemSeeded, markSystemAsSeeded } from './firebase';
 import { collection, onSnapshot, doc, setDoc, deleteDoc, getDocs, query, orderBy, limit } from 'firebase/firestore';
 import { CURRENT_USER } from '../data/mockData';
 
@@ -186,9 +186,9 @@ export function setupUsersRealtimeSubscription(onUsersUpdate?: (accounts: UserAc
         saveUserAccounts(firestoreAccounts);
         if (onUsersUpdate) onUsersUpdate(firestoreAccounts);
       } else {
-        const hasSeeded = localStorage.getItem('USERS_INITIAL_SEEDED_V2');
-        if (!hasSeeded) {
-          localStorage.setItem('USERS_INITIAL_SEEDED_V2', 'true');
+        const seeded = await isSystemSeeded();
+        if (!seeded) {
+          await markSystemAsSeeded();
           const initial = await getInitialAccounts();
           for (const acc of initial) {
             await setDoc(doc(db, 'users', acc.id), acc);

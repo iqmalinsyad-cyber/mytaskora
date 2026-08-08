@@ -1,6 +1,6 @@
 import { AduanCase, AduanNote, AduanStatus, Workspace, FilterOptions, ActivityLog } from '../types';
 import { INITIAL_ADUAN_CASES, INITIAL_WORKSPACES } from '../data/mockData';
-import { db } from '../lib/firebase';
+import { db, isSystemSeeded, markSystemAsSeeded } from '../lib/firebase';
 import { collection, onSnapshot, doc, setDoc, deleteDoc, getDocs, writeBatch } from 'firebase/firestore';
 import { syncAllUsersToSupabase } from '../lib/auth';
 
@@ -187,7 +187,7 @@ class AduanService {
       // 1. Aduan collection snapshot listener
       onSnapshot(
         collection(db, 'aduan'),
-        (snapshot) => {
+        async (snapshot) => {
           const fromCache = snapshot.metadata.hasPendingWrites;
           if (!snapshot.empty) {
             const loadedCases: AduanCase[] = [];
@@ -203,15 +203,15 @@ class AduanService {
             this.notify();
             this.addDiagnosticLog('success', `onSnapshot('aduan'): Received ${loadedCases.length} documents (pendingWrites: ${fromCache})`);
           } else {
-            const hasSeeded = localStorage.getItem('ADUAN_INITIAL_SEEDED_V2');
-            if (!hasSeeded) {
-              localStorage.setItem('ADUAN_INITIAL_SEEDED_V2', 'true');
-              this.addDiagnosticLog('warn', "onSnapshot('aduan'): Firestore collection empty. First-time seeding initial cases...");
-              this.seedAllLocalToFirebase();
+            const seeded = await isSystemSeeded();
+            if (!seeded) {
+              await markSystemAsSeeded();
+              this.addDiagnosticLog('warn', "onSnapshot('aduan'): Firestore DB unseeded. First-time seeding...");
+              await this.seedAllLocalToFirebase();
             } else {
               this.cases = [];
               this.notify();
-              this.addDiagnosticLog('info', "onSnapshot('aduan'): Collection is empty.");
+              this.addDiagnosticLog('info', "onSnapshot('aduan'): Collection is empty (documents deleted).");
             }
           }
         },
@@ -273,6 +273,7 @@ class AduanService {
   public async seedAllLocalToFirebase(): Promise<void> {
     if (!db) return;
     try {
+      await markSystemAsSeeded();
       // Seed Cases
       for (const c of this.cases) {
         await setDoc(doc(db, 'aduan', c.id), c);
