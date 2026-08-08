@@ -57,17 +57,29 @@ try {
 export { app, db };
 
 export async function isSystemSeeded(): Promise<boolean> {
+  if (localStorage.getItem('SYSTEM_SEEDED_V2') === 'true') {
+    return true;
+  }
   if (!db) return true;
   try {
     const snap = await getDoc(doc(db, '_system', 'seed_status'));
-    return snap.exists() && snap.data()?.seeded === true;
-  } catch (e) {
-    console.error('Error checking isSystemSeeded:', e);
-    return true; // Fail-safe: do not auto-seed if error occurs
+    if (snap.exists() && snap.data()?.seeded === true) {
+      localStorage.setItem('SYSTEM_SEEDED_V2', 'true');
+      return true;
+    }
+    return false;
+  } catch (e: any) {
+    if (e?.message?.includes('offline') || e?.code === 'unavailable') {
+      console.warn('isSystemSeeded offline check fallback:', e?.message || e);
+    } else {
+      console.warn('isSystemSeeded note:', e?.message || e);
+    }
+    return true; // Fail-safe: do not auto-seed if error/offline occurs
   }
 }
 
 export async function markSystemAsSeeded(): Promise<void> {
+  localStorage.setItem('SYSTEM_SEEDED_V2', 'true');
   if (!db) return;
   try {
     await setDoc(doc(db, '_system', 'seed_status'), {
@@ -76,7 +88,7 @@ export async function markSystemAsSeeded(): Promise<void> {
       version: 'v2',
     }, { merge: true });
   } catch (e) {
-    console.error('Error marking system as seeded:', e);
+    console.warn('Error marking system as seeded in Firestore:', e);
   }
 }
 

@@ -23,7 +23,7 @@ import { SettingsView } from './components/SettingsView';
 import { LoginModal } from './components/LoginModal';
 import { AdminManagementView } from './components/AdminManagementView';
 import { LinkHubView } from './components/LinkHubView';
-import { getActiveAuthSession, clearAuthSession, recordLogout, setupUsersRealtimeSubscription } from './lib/auth';
+import { getActiveAuthSession, setAuthSession, clearAuthSession, recordLogout, setupUsersRealtimeSubscription } from './lib/auth';
 import { BookOpen, Users, Settings, ShieldAlert, Sparkles, Building2 } from 'lucide-react';
 
 export default function App() {
@@ -60,6 +60,11 @@ export default function App() {
     } catch (e) {
       console.error(e);
     }
+    if (currentUser?.allowedViews && currentUser.allowedViews.length > 0) {
+      if (!currentUser.allowedViews.includes(activeTab)) {
+        setActiveTab(currentUser.allowedViews[0]);
+      }
+    }
   }, [currentUser]);
 
   const handleUpdateUserProfile = (updatedProfile: UserProfile) => {
@@ -77,6 +82,11 @@ export default function App() {
     setCurrentUser(user);
     setIsAuthenticated(true);
     setIsLoginModalOpen(false);
+    if (user.allowedViews && user.allowedViews.length > 0) {
+      setActiveTab(user.allowedViews.includes('dashboard') ? 'dashboard' : user.allowedViews[0]);
+    } else {
+      setActiveTab('linkhub');
+    }
     setRealtimeToast(`🔓 Log Masuk Berjaya! Selamat kembali, ${user.name}`);
     setTimeout(() => setRealtimeToast(null), 4000);
   };
@@ -104,7 +114,28 @@ export default function App() {
   // Subscribe to Realtime Service Updates
   useEffect(() => {
     aduanService.setupFirebaseSubscription();
-    setupUsersRealtimeSubscription();
+    const unsubscribeUsers = setupUsersRealtimeSubscription((updatedAccounts) => {
+      const activeSession = getActiveAuthSession();
+      if (activeSession) {
+        const freshUser = updatedAccounts.find((a) => a.id === activeSession.id);
+        if (freshUser) {
+          const updatedProfile: UserProfile = {
+            id: freshUser.id,
+            name: freshUser.name,
+            username: freshUser.username,
+            email: freshUser.email,
+            role: freshUser.role,
+            avatar: freshUser.avatar,
+            workspaceId: freshUser.workspaceId,
+            department: freshUser.department,
+            phone: freshUser.phone,
+            allowedViews: freshUser.allowedViews || ['linkhub'],
+          };
+          setCurrentUser(updatedProfile);
+          setAuthSession(updatedProfile);
+        }
+      }
+    });
 
     const unsubscribeCases = aduanService.subscribe((updatedCases) => {
       setCases(updatedCases);
@@ -120,6 +151,7 @@ export default function App() {
     document.addEventListener('visibilitychange', handleVisibilityChange);
 
     return () => {
+      if (unsubscribeUsers) unsubscribeUsers();
       unsubscribeCases();
       document.removeEventListener('visibilitychange', handleVisibilityChange);
     };

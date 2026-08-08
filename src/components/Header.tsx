@@ -63,6 +63,10 @@ export const Header: React.FC<HeaderProps> = ({
   const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
   const [isProfileDropdownOpen, setIsProfileDropdownOpen] = useState(false);
 
+  const isAdmin = currentUser?.role === 'Pentadbir Utama Aduan' || 
+                  currentUser?.role?.toLowerCase().includes('pentadbir') || 
+                  currentUser?.role?.toLowerCase().includes('admin');
+
   React.useEffect(() => {
     document.documentElement.classList.remove('dark');
     localStorage.removeItem('theme');
@@ -122,27 +126,29 @@ export const Header: React.FC<HeaderProps> = ({
         </button>
 
         {/* Firebase Cloud Live Sync Badge & Diagnostics Button */}
-        <div className="hidden xl:flex items-center gap-1.5 shrink-0">
-          <div 
-            className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-200 text-[11px] font-semibold cursor-pointer transition-colors" 
-            onClick={onOpenSupabaseModal} 
-            title="Awan Firebase Google Aktif - Data Diselaraskan Secara Real-time di Semua Peranti"
-          >
-            <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
-            <span>Firebase Sync</span>
-          </div>
-
-          {onOpenDiagnostics && (
-            <button
-              onClick={onOpenDiagnostics}
-              className="px-2.5 py-1 rounded-full bg-slate-900 hover:bg-slate-800 text-slate-100 border border-slate-700 text-[11px] font-semibold flex items-center gap-1 transition-all shadow-2xs"
-              title="Buka Panel Diagnostik Realtime Firestore"
+        {isAdmin && (
+          <div className="hidden xl:flex items-center gap-1.5 shrink-0">
+            <div 
+              className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-200 text-[11px] font-semibold cursor-pointer transition-colors" 
+              onClick={onOpenSupabaseModal} 
+              title="Awan Firebase Google Aktif - Data Diselaraskan Secara Real-time di Semua Peranti"
             >
-              <Activity className="w-3 h-3 text-emerald-400" />
-              <span>Diagnostik</span>
-            </button>
-          )}
-        </div>
+              <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+              <span>Firebase Sync</span>
+            </div>
+
+            {onOpenDiagnostics && (
+              <button
+                onClick={onOpenDiagnostics}
+                className="px-2.5 py-1 rounded-full bg-slate-900 hover:bg-slate-800 text-slate-100 border border-slate-700 text-[11px] font-semibold flex items-center gap-1 transition-all shadow-2xs"
+                title="Buka Panel Diagnostik Realtime Firestore"
+              >
+                <Activity className="w-3 h-3 text-emerald-400" />
+                <span>Diagnostik</span>
+              </button>
+            )}
+          </div>
+        )}
 
         {/* Notifications Icon with Badge */}
         <div className="relative shrink-0">
@@ -287,14 +293,16 @@ export const Header: React.FC<HeaderProps> = ({
         </div>
 
         {/* Quick Action Button */}
-        <button
-          onClick={onOpenQuickAction}
-          className="flex items-center gap-1.5 px-2.5 sm:px-3.5 py-1.5 sm:py-2 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-semibold shadow-xs transition-all shrink-0"
-          title="Pintas (Shortcuts)"
-        >
-          <Plus className="w-4 h-4 text-white shrink-0" />
-          <span className="hidden sm:inline">Shortcuts</span>
-        </button>
+        {isAdmin && (
+          <button
+            onClick={onOpenQuickAction}
+            className="flex items-center gap-1.5 px-2.5 sm:px-3.5 py-1.5 sm:py-2 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-semibold shadow-xs transition-all shrink-0"
+            title="Pintas (Shortcuts)"
+          >
+            <Plus className="w-4 h-4 text-white shrink-0" />
+            <span className="hidden sm:inline">Shortcuts</span>
+          </button>
+        )}
       </div>
     </header>
   );

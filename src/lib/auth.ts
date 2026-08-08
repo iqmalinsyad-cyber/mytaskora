@@ -242,35 +242,35 @@ async function getStoredUserAccountsFromLocal(): Promise<UserAccount[]> {
  * Get all user accounts (from LocalStorage or initialized & merged with Firebase Firestore)
  */
 export async function getStoredUserAccounts(): Promise<UserAccount[]> {
-  const accounts = await getStoredUserAccountsFromLocal();
-
-  // Non-blocking background sync with Firestore if available
   if (db) {
-    getDocs(collection(db, 'users'))
-      .then((snap) => {
-        if (!snap.empty) {
-          const firestoreAccounts: UserAccount[] = [];
-          snap.forEach((d) => firestoreAccounts.push(d.data() as UserAccount));
-
-          const accountMap = new Map<string, UserAccount>();
-          accounts.forEach((a) => accountMap.set(a.id, a));
-          firestoreAccounts.forEach((s) => accountMap.set(s.id, s));
-
-          const merged = Array.from(accountMap.values());
-          saveUserAccounts(merged);
+    try {
+      const snap = await getDocs(collection(db, 'users'));
+      if (!snap.empty) {
+        const firestoreAccounts: UserAccount[] = [];
+        snap.forEach((d) => firestoreAccounts.push(d.data() as UserAccount));
+        saveUserAccounts(firestoreAccounts);
+        return firestoreAccounts;
+      } else {
+        const seeded = await isSystemSeeded();
+        if (!seeded) {
+          await markSystemAsSeeded();
+          const initial = await getInitialAccounts();
+          for (const acc of initial) {
+            await setDoc(doc(db, 'users', acc.id), acc);
+          }
+          saveUserAccounts(initial);
+          return initial;
         } else {
-          // Auto-seed to Firestore if empty
-          accounts.forEach((acc) => {
-            setDoc(doc(db, 'users', acc.id), acc).catch(() => {});
-          });
+          saveUserAccounts([]);
+          return [];
         }
-      })
-      .catch((e) => {
-        console.warn('Firebase fetch users warning:', e);
-      });
+      }
+    } catch (e) {
+      console.warn('Firebase fetch users warning:', e);
+    }
   }
 
-  return accounts;
+  return getStoredUserAccountsFromLocal();
 }
 
 export function saveUserAccounts(accounts: UserAccount[]) {
@@ -392,7 +392,7 @@ export async function authenticateUser(
     workspaceId: match.workspaceId,
     department: match.department,
     phone: match.phone,
-    allowedViews: match.allowedViews || ['dashboard', 'aduan', 'kanban', 'templates', 'linkhub', 'settings'],
+    allowedViews: match.allowedViews || ['linkhub'],
   };
 
   // Sync to Firebase in background non-blocking
@@ -451,14 +451,15 @@ export async function registerNewUser(data: {
     name: data.name.trim(),
     username: cleanUsername,
     email: cleanEmail,
-    role: 'Pegawai Aduan',
-    avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80',
+    role: 'Pengguna Baharu (Menunggu Pengesahan Admin)',
+    avatar: `https://api.dicebear.com/7.x/avataaars/svg?seed=${encodeURIComponent(cleanUsername)}&backgroundColor=b6e3f4`,
     workspaceId: 'ws-integriti',
-    department: data.department?.trim() || 'Unit Aduan & Integriti',
+    department: data.department?.trim() || 'Unit Workspace',
     phone: data.phone?.trim() || '+60 12-000 0000',
     passwordHash: passwordHash,
     createdAt: new Date().toISOString(),
     lastLogin: new Date().toISOString(),
+    allowedViews: ['linkhub'],
   };
 
   accounts.push(newAcc);
@@ -474,6 +475,7 @@ export async function registerNewUser(data: {
     workspaceId: newAcc.workspaceId,
     department: newAcc.department,
     phone: newAcc.phone,
+    allowedViews: ['linkhub'],
   };
 
   // Sync to Firebase Realtime DB

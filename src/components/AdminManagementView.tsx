@@ -39,6 +39,8 @@ import {
   subscribeAuditLogsRealtime
 } from '../lib/auth';
 import { getSupabaseClient } from '../lib/supabase';
+import { db } from '../lib/firebase';
+import { doc, setDoc } from 'firebase/firestore';
 
 interface AdminManagementViewProps {
   currentUser: UserProfile;
@@ -175,6 +177,18 @@ export const AdminManagementView: React.FC<AdminManagementViewProps> = ({
     setUsers(updatedUsers);
     saveUserAccounts(updatedUsers);
 
+    if (db) {
+      try {
+        const target = updatedUsers.find(u => u.id === selectedUser.id);
+        if (target) {
+          const cleanTarget = JSON.parse(JSON.stringify(target));
+          await setDoc(doc(db, 'users', target.id), cleanTarget, { merge: true });
+        }
+      } catch (e) {
+        console.error('Firebase update role error:', e);
+      }
+    }
+
     // Sync to Supabase
     const supabase = getSupabaseClient();
     if (supabase) {
@@ -230,6 +244,18 @@ export const AdminManagementView: React.FC<AdminManagementViewProps> = ({
     setUsers(updatedUsers);
     saveUserAccounts(updatedUsers);
 
+    if (db) {
+      try {
+        const target = updatedUsers.find(u => u.id === selectedUser.id);
+        if (target) {
+          const cleanTarget = JSON.parse(JSON.stringify(target));
+          await setDoc(doc(db, 'users', target.id), cleanTarget, { merge: true });
+        }
+      } catch (e) {
+        console.error('Firebase update password error:', e);
+      }
+    }
+
     // Sync to Supabase
     const supabase = getSupabaseClient();
     if (supabase) {
@@ -284,6 +310,18 @@ export const AdminManagementView: React.FC<AdminManagementViewProps> = ({
 
     setUsers(updatedUsers);
     saveUserAccounts(updatedUsers);
+
+    if (db) {
+      try {
+        const target = updatedUsers.find(u => u.id === selectedUser.id);
+        if (target) {
+          const cleanTarget = JSON.parse(JSON.stringify(target));
+          await setDoc(doc(db, 'users', target.id), cleanTarget, { merge: true });
+        }
+      } catch (e) {
+        console.error('Firebase update permissions error:', e);
+      }
+    }
 
     // Sync to Supabase if connected
     const supabase = getSupabaseClient();
