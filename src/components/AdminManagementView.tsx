@@ -34,7 +34,9 @@ import {
   AuditLogEntry, 
   hashPassword,
   recordAuditLog,
-  deleteUserAccount
+  deleteUserAccount,
+  setupUsersRealtimeSubscription,
+  subscribeAuditLogsRealtime
 } from '../lib/auth';
 import { getSupabaseClient } from '../lib/supabase';
 
@@ -77,6 +79,20 @@ export const AdminManagementView: React.FC<AdminManagementViewProps> = ({
   useEffect(() => {
     loadAccountsData();
     loadAuditLogsData();
+
+    const unsubUsers = setupUsersRealtimeSubscription((accs) => {
+      setUsers(accs);
+    });
+
+    const unsubLogs = subscribeAuditLogsRealtime((logs) => {
+      setAuditLogs(logs);
+      setIsLoadingLogs(false);
+    });
+
+    return () => {
+      if (unsubUsers) unsubUsers();
+      if (unsubLogs) unsubLogs();
+    };
   }, []);
 
   const loadAccountsData = async () => {

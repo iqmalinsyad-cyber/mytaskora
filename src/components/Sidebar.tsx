@@ -199,26 +199,6 @@ export const Sidebar: React.FC<SidebarProps> = ({
           </nav>
         </div>
       </div>
-
-      {/* Bottom Pro Plan Upgrade / Realtime Connection Banner */}
-      <div className="p-4 mt-auto">
-        <div className="bg-slate-900 rounded-xl p-4 text-white shadow-sm">
-          <p className="text-xs text-slate-400 mb-1 font-medium">Koneksi Real-time</p>
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <span className="flex h-2 w-2 rounded-full bg-emerald-500"></span>
-              <p className="text-xs font-mono text-emerald-400 font-semibold">Supabase Active</p>
-            </div>
-            <button
-              onClick={onOpenSupabaseModal}
-              className="p-1 rounded-md text-slate-400 hover:text-white hover:bg-slate-800 transition-colors"
-              title="Tetapan Supabase"
-            >
-              <ChevronRight className="w-4 h-4" />
-            </button>
-          </div>
-        </div>
-      </div>
     </aside>
   );
 };

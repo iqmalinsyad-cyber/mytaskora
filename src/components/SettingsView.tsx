@@ -24,6 +24,8 @@ import {
 import { UserProfile, Workspace } from '../types';
 import { hashPassword, getStoredUserAccounts, saveUserAccounts, setAuthSession } from '../lib/auth';
 import { getSupabaseClient } from '../lib/supabase';
+import { db } from '../lib/firebase';
+import { doc, setDoc } from 'firebase/firestore';
 
 interface SettingsViewProps {
   currentUser: UserProfile;
@@ -149,7 +151,16 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
       saveUserAccounts(accounts);
     }
 
-    // 2. Sync to Supabase `users` table
+    // 2. Sync to Firebase Firestore & Supabase
+    if (db) {
+      try {
+        const fullAccount = accounts.find(a => a.id === updated.id) || updated;
+        await setDoc(doc(db, 'users', updated.id), fullAccount, { merge: true });
+      } catch (err) {
+        console.error('Failed to sync profile to Firebase:', err);
+      }
+    }
+
     const supabase = getSupabaseClient();
     if (supabase) {
       try {
@@ -211,6 +222,14 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
     if (userAcc) {
       userAcc.passwordHash = newHash;
       saveUserAccounts(accounts);
+
+      if (db) {
+        try {
+          await setDoc(doc(db, 'users', userAcc.id), userAcc, { merge: true });
+        } catch (err) {
+          console.error('Failed to sync updated password to Firebase:', err);
+        }
+      }
     }
 
     // Sync to Supabase if connected

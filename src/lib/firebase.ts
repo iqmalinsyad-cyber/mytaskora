@@ -1,5 +1,5 @@
 import { initializeApp, getApps, getApp, FirebaseApp } from 'firebase/app';
-import { getFirestore, Firestore } from 'firebase/firestore';
+import { getFirestore, Firestore, doc, getDocFromServer } from 'firebase/firestore';
 import firebaseConfigData from '../../firebase-applet-config.json';
 
 let app: FirebaseApp | null = null;
@@ -34,7 +34,22 @@ try {
   } else {
     db = getFirestore(app);
   }
-  console.log('Firebase Firestore initialized successfully for Cloudflare Pages / AI Studio with database ID:', firestoreDatabaseId);
+  console.log('Firebase Firestore initialized successfully with database ID:', firestoreDatabaseId);
+
+  // Connection probe test
+  if (db) {
+    getDocFromServer(doc(db, '_diagnostics', 'boot_probe'))
+      .then(() => {
+        console.log('🔥 Firebase server connection test succeeded.');
+      })
+      .catch((error) => {
+        if (error instanceof Error && error.message.includes('the client is offline')) {
+          console.warn('Firebase client is offline. Local cache will be used.');
+        } else {
+          console.log('Firebase server probe note:', error?.message || error);
+        }
+      });
+  }
 } catch (error) {
   console.error('Failed to initialize Firebase:', error);
 }
@@ -52,4 +67,5 @@ export function getFirebaseConfigInfo() {
     isConnected: Boolean(db),
   };
 }
+
 

@@ -20,6 +20,7 @@ import {
 } from 'lucide-react';
 import { FormatTemplate, AduanCase } from '../types';
 import { FORMAT_TEMPLATES } from '../data/mockData';
+import { catatanTemplateService } from '../services/catatanTemplateService';
 
 interface CatatanFormatViewProps {
   cases: AduanCase[];
@@ -27,39 +28,25 @@ interface CatatanFormatViewProps {
   preselectedCaseId?: string;
 }
 
-const DEFAULT_CATEGORIES = [
-  'Bantuan Sewa Rumah',
-  'Bantuan Deposit Sewa',
-  'Bantuan Tunggakan Utiliti',
-  'Bantuan Tunggakan Sewa/Ansuran Rumah',
-  'Bantuan Kewangan',
-  'Bantuan Penerapan Nilai Islam',
-  'Tambang Pengangkutan Sekolah'
-];
-
 export const CatatanFormatView: React.FC<CatatanFormatViewProps> = ({
   cases,
   preselectedCaseId,
 }) => {
-  // Load initial formats from localStorage or mockData
-  const [templates, setTemplates] = useState<FormatTemplate[]>(() => {
-    try {
-      const saved = localStorage.getItem('WORKSPACE_CATATAN_FORMATS_V2');
-      return saved ? JSON.parse(saved) : FORMAT_TEMPLATES;
-    } catch {
-      return FORMAT_TEMPLATES;
-    }
-  });
+  const [templates, setTemplates] = useState<FormatTemplate[]>(() => catatanTemplateService.getTemplates());
+  const [categories, setCategories] = useState<string[]>(() => catatanTemplateService.getCategories());
 
-  // Load categories from localStorage or DEFAULT_CATEGORIES
-  const [categories, setCategories] = useState<string[]>(() => {
-    try {
-      const saved = localStorage.getItem('WORKSPACE_CATATAN_CATEGORIES_V2');
-      return saved ? JSON.parse(saved) : DEFAULT_CATEGORIES;
-    } catch {
-      return DEFAULT_CATEGORIES;
-    }
-  });
+  useEffect(() => {
+    const unsubTemplates = catatanTemplateService.subscribeTemplates((ts) => {
+      setTemplates(ts);
+    });
+    const unsubCategories = catatanTemplateService.subscribeCategories((cs) => {
+      setCategories(cs);
+    });
+    return () => {
+      unsubTemplates();
+      unsubCategories();
+    };
+  }, []);
 
   // Search & Filter States
   const [searchQuery, setSearchQuery] = useState('');
@@ -164,15 +151,10 @@ export const CatatanFormatView: React.FC<CatatanFormatViewProps> = ({
     const trimmed = customCategoryInput.trim();
     if (!trimmed) return;
 
-    if (!categories.includes(trimmed)) {
-      const updated = [...categories, trimmed];
-      setCategories(updated);
-      setNewFormatCategory(trimmed);
-      setCategorySuccessMsg(`Kategori Bantuan "${trimmed}" berjaya ditambah!`);
-      setTimeout(() => setCategorySuccessMsg(''), 3000);
-    } else {
-      setNewFormatCategory(trimmed);
-    }
+    catatanTemplateService.addCategory(trimmed);
+    setNewFormatCategory(trimmed);
+    setCategorySuccessMsg(`Kategori Bantuan "${trimmed}" berjaya ditambah!`);
+    setTimeout(() => setCategorySuccessMsg(''), 3000);
     setCustomCategoryInput('');
     setShowAddCategoryInput(false);
   };
@@ -196,48 +178,40 @@ export const CatatanFormatView: React.FC<CatatanFormatViewProps> = ({
     setIsModalOpen(true);
   };
 
-  const handleConfirmDelete = () => {
+  const handleConfirmDelete = async () => {
     if (!deleteConfirmFmt) return;
     const targetId = deleteConfirmFmt.id;
-    const updated = templates.filter(t => t.id !== targetId);
-    setTemplates(updated);
+    await catatanTemplateService.deleteTemplate(targetId);
 
     if (selectedFormat.id === targetId) {
-      if (updated.length > 0) {
-        setSelectedFormat(updated[0]);
+      const remaining = templates.filter(t => t.id !== targetId);
+      if (remaining.length > 0) {
+        setSelectedFormat(remaining[0]);
       }
     }
     setDeleteConfirmFmt(null);
   };
 
-  const handleSaveFormatModal = (e: React.FormEvent) => {
+  const handleSaveFormatModal = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newFormatTitle.trim() || !newFormatContent.trim()) return;
 
     if (editingFormatId) {
-      // Update existing format
-      const updated = templates.map(t => {
-        if (t.id === editingFormatId) {
-          return {
-            ...t,
-            title: newFormatTitle.trim(),
-            category: newFormatCategory,
-            description: newFormatDesc.trim() || 'Format khusus catatan siasatan & bantuan.',
-            templateContent: newFormatContent.trim(),
-          };
-        }
-        return t;
-      });
-      setTemplates(updated);
-      
-      const editedItem = updated.find(t => t.id === editingFormatId);
-      if (editedItem) {
-        setSelectedFormat(editedItem);
-        setTitle(editedItem.title);
-        setContent(editedItem.templateContent);
+      const existing = templates.find(t => t.id === editingFormatId);
+      if (existing) {
+        const updatedItem: FormatTemplate = {
+          ...existing,
+          title: newFormatTitle.trim(),
+          category: newFormatCategory,
+          description: newFormatDesc.trim() || 'Format khusus catatan siasatan & bantuan.',
+          templateContent: newFormatContent.trim(),
+        };
+        await catatanTemplateService.saveTemplate(updatedItem);
+        setSelectedFormat(updatedItem);
+        setTitle(updatedItem.title);
+        setContent(updatedItem.templateContent);
       }
     } else {
-      // Create new format
       const newFmt: FormatTemplate = {
         id: `fmt-custom-${Date.now()}`,
         code: `FORMAT_${newFormatCategory.toUpperCase().replace(/[^A-Z0-9]/g, '_')}_${Date.now()}`,
@@ -248,7 +222,7 @@ export const CatatanFormatView: React.FC<CatatanFormatViewProps> = ({
         templateContent: newFormatContent.trim(),
       };
 
-      setTemplates([newFmt, ...templates]);
+      await catatanTemplateService.saveTemplate(newFmt);
       setSelectedFormat(newFmt);
       setTitle(newFmt.title);
       setContent(newFmt.templateContent);

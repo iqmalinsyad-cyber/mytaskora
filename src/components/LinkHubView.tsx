@@ -95,7 +95,12 @@ export const LinkHubView: React.FC<LinkHubViewProps> = ({ currentUser }) => {
   const [deletingId, setDeletingId] = useState<string | null>(null);
 
   useEffect(() => {
-    loadLinks();
+    setIsLoading(true);
+    const unsub = linkhubService.subscribe((data) => {
+      setLinks(data);
+      setIsLoading(false);
+    });
+    return () => unsub();
   }, []);
 
   // Sync categoryList & iconOptions to LocalStorage

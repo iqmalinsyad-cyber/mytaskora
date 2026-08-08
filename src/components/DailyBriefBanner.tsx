@@ -19,13 +19,26 @@ export const DailyBriefBanner: React.FC<DailyBriefBannerProps> = ({
   onOpenLaporanView,
   onViewBriefSummary,
 }) => {
+  const getGreeting = () => {
+    const hour = new Date().getHours();
+    if (hour >= 5 && hour < 12) {
+      return 'Selamat pagi';
+    } else if (hour >= 12 && hour < 14) {
+      return 'Selamat tengah hari';
+    } else if (hour >= 14 && hour < 19) {
+      return 'Selamat petang';
+    } else {
+      return 'Selamat malam';
+    }
+  };
+
   return (
     <div className="space-y-5 mb-6">
       {/* Greeting Header & Date Filter Controls */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
           <h2 className="text-2xl font-extrabold text-slate-900 tracking-tight flex items-center gap-2">
-            Selamat pagi, {currentUser.name.split(' ')[0]} <span className="animate-bounce">👋</span>
+            {getGreeting()}, {currentUser.name.split(' ')[0]} <span className="animate-bounce">👋</span>
           </h2>
           <p className="text-xs text-slate-500 mt-0.5 font-medium">
             Berikut adalah status perkembangan kes aduan dan prestasi SLA merentas workspace anda hari ini.

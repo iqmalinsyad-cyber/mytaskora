@@ -2,8 +2,6 @@ import React, { useState } from 'react';
 import { 
   Search, 
   Sparkles, 
-  Moon, 
-  Sun, 
   Bell, 
   ChevronDown, 
   Plus, 
@@ -64,10 +62,14 @@ export const Header: React.FC<HeaderProps> = ({
   const [isWsDropdownOpen, setIsWsDropdownOpen] = useState(false);
   const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
   const [isProfileDropdownOpen, setIsProfileDropdownOpen] = useState(false);
-  const [isDarkMode, setIsDarkMode] = useState(false);
+
+  React.useEffect(() => {
+    document.documentElement.classList.remove('dark');
+    localStorage.removeItem('theme');
+  }, []);
 
   return (
-    <header className="h-16 bg-white/95 backdrop-blur-md border-b border-slate-200 px-3 sm:px-6 md:px-8 flex items-center justify-between sticky top-0 z-30 shadow-2xs">
+    <header className="h-16 bg-white/95 backdrop-blur-md border-b border-slate-200 px-3 sm:px-6 md:px-8 flex items-center justify-between sticky top-0 z-30 shadow-2xs transition-colors">
       {/* Left Area: Sidebar Toggle */}
       <div className="flex items-center gap-2 sm:gap-3">
         {onToggleSidebar && (
@@ -140,15 +142,6 @@ export const Header: React.FC<HeaderProps> = ({
             </button>
           )}
         </div>
-
-        {/* Theme Dark/Light Toggle */}
-        <button
-          onClick={() => setIsDarkMode(!isDarkMode)}
-          className="p-2 rounded-lg hover:bg-slate-100 text-slate-500 transition-colors"
-          title="Tukar Mod Paparan"
-        >
-          {isDarkMode ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
-        </button>
 
         {/* Notifications Icon with Badge */}
         <div className="relative">

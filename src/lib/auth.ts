@@ -172,18 +172,16 @@ async function getInitialAccounts(): Promise<UserAccount[]> {
 let usersUnsubscribe: (() => void) | null = null;
 
 export function setupUsersRealtimeSubscription(onUsersUpdate?: (accounts: UserAccount[]) => void) {
-  if (!db) return;
-  if (usersUnsubscribe) return;
+  if (!db) return () => {};
 
   try {
-    usersUnsubscribe = onSnapshot(collection(db, 'users'), async (snapshot) => {
+    const unsub = onSnapshot(collection(db, 'users'), async (snapshot) => {
       if (!snapshot.empty) {
         const firestoreAccounts: UserAccount[] = [];
         snapshot.forEach((docSnap) => {
           firestoreAccounts.push(docSnap.data() as UserAccount);
         });
 
-        // Merge with local accounts
         const local = await getStoredUserAccountsFromLocal();
         const accMap = new Map<string, UserAccount>();
         local.forEach((a) => accMap.set(a.id, a));
@@ -193,15 +191,36 @@ export function setupUsersRealtimeSubscription(onUsersUpdate?: (accounts: UserAc
         saveUserAccounts(merged);
         if (onUsersUpdate) onUsersUpdate(merged);
       } else {
-        // If empty in Firestore, seed initial accounts
         const initial = await getInitialAccounts();
         for (const acc of initial) {
           await setDoc(doc(db, 'users', acc.id), acc);
         }
       }
     });
+    return unsub;
   } catch (e) {
     console.error('Failed setting up Firestore users realtime subscription:', e);
+    return () => {};
+  }
+}
+
+export function subscribeAuditLogsRealtime(onLogsUpdate: (logs: AuditLogEntry[]) => void): () => void {
+  if (!db) return () => {};
+  try {
+    return onSnapshot(
+      query(collection(db, 'audit_logs'), orderBy('timestamp', 'desc'), limit(200)),
+      (snapshot) => {
+        if (!snapshot.empty) {
+          const logs: AuditLogEntry[] = [];
+          snapshot.forEach((d) => logs.push(d.data() as AuditLogEntry));
+          onLogsUpdate(logs);
+        }
+      },
+      (err) => console.error('Audit logs onSnapshot error:', err)
+    );
+  } catch (e) {
+    console.error('Failed setting up audit logs subscription:', e);
+    return () => {};
   }
 }
 
