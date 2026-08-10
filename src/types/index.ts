@@ -116,6 +116,7 @@ export interface UserProfile {
 
 export const ALL_SYSTEM_VIEWS = [
   { id: 'dashboard', label: 'Dashboard & KPI Utama', category: 'Utama' },
+  { id: 'calendar', label: 'Kalendar Program', category: 'Utama' },
   { id: 'aduan', label: 'Senarai Aduan', category: 'Utama' },
   { id: 'kanban', label: 'Paparan Aduan (Kanban)', category: 'Utama' },
   { id: 'templates', label: 'Format / Template Catatan', category: 'Utama' },
@@ -123,6 +124,23 @@ export const ALL_SYSTEM_VIEWS = [
   { id: 'admin', label: 'Pentadbiran & Audit User (Admin)', category: 'Sistem' },
   { id: 'settings', label: 'Tetapan Akaun', category: 'Sistem' },
 ];
+
+export type ProgramCategory = 'SJK' | 'Kemaskini' | 'Lain-lain';
+export type ProgramStatus = 'Diteruskan' | 'Batal';
+
+export interface ProgramEvent {
+  id: string;
+  title: string;
+  dateTime: string;
+  endDateTime?: string;
+  location: string;
+  category: ProgramCategory;
+  status: ProgramStatus;
+  notes?: string;
+  createdBy?: string;
+  createdAt?: string;
+  updatedAt?: string;
+}
 
 export interface ActivityLog {
   id: string;

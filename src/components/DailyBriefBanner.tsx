@@ -33,7 +33,7 @@ export const DailyBriefBanner: React.FC<DailyBriefBannerProps> = ({
   };
 
   return (
-    <div className="space-y-5 mb-6">
+    <div className="space-y-4">
       {/* Greeting Header & Date Filter Controls */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>

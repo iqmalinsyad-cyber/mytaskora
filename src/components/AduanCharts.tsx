@@ -36,7 +36,7 @@ const DAILY_USAGE_DATA = [
 
 export const AduanCharts: React.FC = () => {
   return (
-    <div className="grid grid-cols-1 lg:grid-cols-3 gap-5 mb-6">
+    <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 lg:gap-5">
       {/* Left 2 Cols: Trend Chart */}
       <div className="lg:col-span-2 bg-white rounded-2xl p-5 border border-slate-200 shadow-sm flex flex-col justify-between">
         {/* Header */}

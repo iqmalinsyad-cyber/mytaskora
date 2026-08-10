@@ -55,7 +55,7 @@ export const AduanKanban: React.FC<AduanKanbanProps> = ({
       </div>
 
       {/* Kanban Columns */}
-      <div className="grid grid-cols-1 md:grid-cols-3 xl:grid-cols-5 gap-4 overflow-x-auto pb-4">
+      <div className="grid grid-cols-1 md:grid-cols-3 xl:grid-cols-5 gap-3 lg:gap-4 overflow-x-auto pb-4">
         {columns.map((col) => {
           const colCases = cases.filter(c => c.status === col.status);
           return (
@@ -107,9 +107,12 @@ export const AduanKanban: React.FC<AduanKanbanProps> = ({
                       <div className="pt-2 border-t border-gray-100 flex items-center justify-between">
                         <div className="flex items-center gap-1.5">
                           <img
-                            src={aduan.assigneeAvatar || 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150&auto=format&fit=crop&q=80'}
+                            src={aduan.assigneeAvatar || `https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(aduan.assignee || 'Officer')}&backgroundColor=3b82f6`}
                             alt={aduan.assignee}
-                            className="w-5 h-5 rounded-full object-cover border border-gray-200"
+                            onError={(e) => {
+                              e.currentTarget.src = `https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(aduan.assignee || 'Officer')}&backgroundColor=3b82f6`;
+                            }}
+                            className="w-5 h-5 rounded-full object-cover border border-gray-200 bg-gray-100"
                           />
                           <span className="text-[10px] font-semibold text-gray-700">{aduan.assignee.split(' ')[0]}</span>
                         </div>

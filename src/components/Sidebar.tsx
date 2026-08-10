@@ -1,6 +1,7 @@
 import React from 'react';
 import { 
   LayoutDashboard, 
+  Calendar,
   Bot, 
   BarChart3, 
   Workflow, 
@@ -48,6 +49,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
   onOpenLogin,
 }) => {
   const isAllowed = (viewId: string) => {
+    if (viewId === 'admin' || viewId === 'settings' || viewId === 'calendar') return true;
     if (!currentUser) return true;
     if (!currentUser.allowedViews || currentUser.allowedViews.length === 0) return true;
     return currentUser.allowedViews.includes(viewId);
@@ -55,13 +57,14 @@ export const Sidebar: React.FC<SidebarProps> = ({
 
   const overviewNav = [
     { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
+    { id: 'calendar', label: 'Kalendar', icon: Calendar },
     { id: 'aduan', label: 'Kes Aduan', icon: ShieldAlert, badge: 'Utama' },
     { id: 'kanban', label: 'Paparan Aduan', icon: Kanban },
     { id: 'templates', label: 'Format / Template Catatan', icon: FileText },
   ].filter(item => isAllowed(item.id));
 
   const workspaceNav = [
-    { id: 'linkhub', label: 'Linkhub Pautan Rujukan', icon: FolderGit2, badge: 'Baharu' },
+    { id: 'linkhub', label: 'Linkhub', icon: FolderGit2, badge: 'Baharu' },
   ].filter(item => isAllowed(item.id));
 
   const systemNav = [

@@ -23,6 +23,8 @@ import { SettingsView } from './components/SettingsView';
 import { LoginModal } from './components/LoginModal';
 import { AdminManagementView } from './components/AdminManagementView';
 import { LinkHubView } from './components/LinkHubView';
+import { CalendarView } from './components/CalendarView';
+import { DashboardCalendarWidget } from './components/DashboardCalendarWidget';
 import { getActiveAuthSession, setAuthSession, clearAuthSession, recordLogout, setupUsersRealtimeSubscription } from './lib/auth';
 import { BookOpen, Users, Settings, ShieldAlert, Sparkles, Building2 } from 'lucide-react';
 
@@ -61,7 +63,7 @@ export default function App() {
       console.error(e);
     }
     if (currentUser?.allowedViews && currentUser.allowedViews.length > 0) {
-      if (!currentUser.allowedViews.includes(activeTab)) {
+      if (activeTab !== 'admin' && activeTab !== 'settings' && !currentUser.allowedViews.includes(activeTab)) {
         setActiveTab(currentUser.allowedViews[0]);
       }
     }
@@ -308,7 +310,7 @@ export default function App() {
         />
 
         {/* Dynamic Body Content */}
-        <main className="p-3 sm:p-6 md:p-8 flex-1 overflow-y-auto max-w-7xl w-full mx-auto space-y-6">
+        <main className="p-3 sm:p-5 lg:p-6 flex-1 overflow-y-auto w-full space-y-4 lg:space-y-5">
           {activeTab === 'dashboard' && (
             <>
               {/* Featured Daily Brief Banner */}
@@ -323,6 +325,9 @@ export default function App() {
 
               {/* KPI Cards */}
               <KpiCards cases={workspaceCases} />
+
+              {/* Upcoming Programs Calendar Widget */}
+              <DashboardCalendarWidget onOpenCalendar={() => setActiveTab('calendar')} />
 
               {/* Charts Section */}
               <AduanCharts />
@@ -375,8 +380,12 @@ export default function App() {
             <LinkHubView currentUser={currentUser} />
           )}
 
+          {activeTab === 'calendar' && (
+            <CalendarView currentUser={currentUser} />
+          )}
+
           {/* Access Control Guard Notice */}
-          {currentUser?.allowedViews && currentUser.allowedViews.length > 0 && !currentUser.allowedViews.includes(activeTab) && (
+          {currentUser?.allowedViews && currentUser.allowedViews.length > 0 && activeTab !== 'admin' && activeTab !== 'settings' && activeTab !== 'calendar' && !currentUser.allowedViews.includes(activeTab) && (
             <div className="bg-white rounded-3xl p-8 border border-slate-200 shadow-sm text-center max-w-lg mx-auto space-y-4 my-12">
               <div className="w-16 h-16 rounded-full bg-rose-50 text-rose-600 flex items-center justify-center mx-auto">
                 <ShieldAlert className="w-8 h-8" />

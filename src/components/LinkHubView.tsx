@@ -34,11 +34,11 @@ const DEFAULT_CATEGORIES = [
 ];
 
 const DEFAULT_ICONS = [
-  { value: 'Globe', label: '🌐 Globe / Portal' },
-  { value: 'FileText', label: '📄 Pekeliling / SOP' },
+  { value: 'Globe', label: '🌐 Portal' },
+  { value: 'FileText', label: '📄 Pekeliling' },
   { value: 'FileSpreadsheet', label: '📊 Borang / Dokumen' },
-  { value: 'Shield', label: '🛡️ Integriti / SPRM' },
-  { value: 'Bookmark', label: '🔖 Bookmark / Rujukan' },
+  { value: 'Shield', label: '🛡️ Penting' },
+  { value: 'Bookmark', label: '🔖 Rujukan' },
   { value: 'Link', label: '🔗 Pautan Umum' }
 ];
 
@@ -62,7 +62,17 @@ export const LinkHubView: React.FC<LinkHubViewProps> = ({ currentUser }) => {
   const [iconOptions, setIconOptions] = useState<{ value: string; label: string }[]>(() => {
     try {
       const saved = localStorage.getItem('WORKSPACE_LINK_HUB_ICONS_V3');
-      return saved ? JSON.parse(saved) : DEFAULT_ICONS;
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        return parsed.map((item: { value: string; label: string }) => {
+          if (item.label === '🌐 Globe / Portal') return { ...item, label: '🌐 Portal' };
+          if (item.label === '📄 Pekeliling / SOP') return { ...item, label: '📄 Pekeliling' };
+          if (item.label === '🛡️ Integriti / SPRM') return { ...item, label: '🛡️ Penting' };
+          if (item.label === '🔖 Bookmark / Rujukan') return { ...item, label: '🔖 Rujukan' };
+          return item;
+        });
+      }
+      return DEFAULT_ICONS;
     } catch {
       return DEFAULT_ICONS;
     }
@@ -362,7 +372,7 @@ export const LinkHubView: React.FC<LinkHubViewProps> = ({ currentUser }) => {
   ];
 
   return (
-    <div className="space-y-6 animate-fade-in pb-12">
+    <div className="space-y-4 lg:space-y-5 animate-fade-in pb-8">
       {/* Toast Notification */}
       {toastMessage && (
         <div className="fixed top-4 right-4 z-50 bg-slate-900 text-white px-4 py-3 rounded-2xl shadow-xl border border-slate-700 flex items-center gap-3 text-xs font-bold animate-fade-in">
@@ -372,7 +382,7 @@ export const LinkHubView: React.FC<LinkHubViewProps> = ({ currentUser }) => {
       )}
 
       {/* Header Banner */}
-      <div className="bg-gradient-to-r from-slate-900 via-indigo-900 to-slate-900 rounded-3xl p-6 text-white shadow-xl border border-slate-800 relative overflow-hidden">
+      <div className="bg-gradient-to-r from-slate-900 via-indigo-900 to-slate-900 rounded-3xl p-5 lg:p-6 text-white shadow-xl border border-slate-800 relative overflow-hidden">
         <div className="absolute right-0 top-0 translate-x-12 -translate-y-12 w-64 h-64 bg-indigo-500/10 rounded-full blur-3xl pointer-events-none"></div>
 
         <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4 relative">
@@ -382,13 +392,13 @@ export const LinkHubView: React.FC<LinkHubViewProps> = ({ currentUser }) => {
             </div>
             <div>
               <div className="flex items-center gap-2">
-                <h2 className="text-xl font-extrabold tracking-tight">Linkhub Pusat Rujukan & Pautan Rasmi</h2>
+                <h2 className="text-xl font-extrabold tracking-tight">Linkhub Pusat Rujukan & Pautan</h2>
                 <span className="px-2.5 py-0.5 rounded-full text-[10px] font-extrabold bg-indigo-500/30 text-indigo-200 border border-indigo-400/30">
                   {links.length} Pautan Tersimpan
                 </span>
               </div>
               <p className="text-xs text-slate-300 mt-1 max-w-xl">
-                Himpunan pautan sistem kerajaan, dokumen SOP, borang rasmi dan portals rujukan integriti.
+                Himpunan pautan / Link
               </p>
             </div>
           </div>

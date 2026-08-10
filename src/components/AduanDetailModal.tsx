@@ -58,7 +58,7 @@ export const AduanDetailModal: React.FC<AduanDetailModalProps> = ({
       await onAddNote(aduan.id, {
         authorName: 'Sarah Adams',
         authorRole: 'Pentadbir Utama',
-        authorAvatar: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=150&auto=format&fit=crop&q=80',
+        authorAvatar: 'https://api.dicebear.com/7.x/personas/svg?seed=Aisha&clothingColor=3b82f6&hair=hijab',
         formatType: 'Catatan Bebas',
         title: newNoteTitle,
         content: newNoteContent,

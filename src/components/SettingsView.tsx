@@ -34,15 +34,54 @@ interface SettingsViewProps {
   onUpdateWorkspace?: (updatedWs: Workspace) => void;
 }
 
-const PRESET_AVATARS = [
-  'https://api.dicebear.com/7.x/avataaars/svg?seed=Felix&backgroundColor=b6e3f4',
-  'https://api.dicebear.com/7.x/avataaars/svg?seed=Aneka&backgroundColor=c0aede',
-  'https://api.dicebear.com/7.x/avataaars/svg?seed=Sophia&backgroundColor=d1d4f9',
-  'https://api.dicebear.com/7.x/avataaars/svg?seed=Amalia&backgroundColor=ffd5dc',
-  'https://api.dicebear.com/7.x/avataaars/svg?seed=Aiden&backgroundColor=ffdfbf',
-  'https://api.dicebear.com/7.x/avataaars/svg?seed=Zack&backgroundColor=c0aede',
-  'https://api.dicebear.com/7.x/avataaars/svg?seed=Milo&backgroundColor=b6e3f4',
-  'https://api.dicebear.com/7.x/avataaars/svg?seed=Nala&backgroundColor=ffd5dc',
+export const PRESET_AVATARS = [
+  // 1. Initial Badges (Kemaskini Clean & Professional)
+  'https://api.dicebear.com/7.x/initials/svg?seed=Admin&backgroundColor=4f46e5',
+  'https://api.dicebear.com/7.x/initials/svg?seed=User&backgroundColor=0284c7',
+  'https://api.dicebear.com/7.x/initials/svg?seed=Editor&backgroundColor=059669',
+  'https://api.dicebear.com/7.x/initials/svg?seed=Officer&backgroundColor=d97706',
+  'https://api.dicebear.com/7.x/initials/svg?seed=Analyst&backgroundColor=7c3aed',
+  'https://api.dicebear.com/7.x/initials/svg?seed=Manager&backgroundColor=dc2626',
+  'https://api.dicebear.com/7.x/initials/svg?seed=Integriti&backgroundColor=2563eb',
+  'https://api.dicebear.com/7.x/initials/svg?seed=Aduan&backgroundColor=0d9488',
+
+  // 2. Tech Bots & Modern Vectors
+  'https://api.dicebear.com/7.x/bottts/svg?seed=Cyber&backgroundColor=b6e3f4',
+  'https://api.dicebear.com/7.x/bottts/svg?seed=Echo&backgroundColor=ffdfbf',
+  'https://api.dicebear.com/7.x/bottts/svg?seed=Nova&backgroundColor=d1d4f9',
+  'https://api.dicebear.com/7.x/bottts/svg?seed=Pulse&backgroundColor=c0aede',
+  'https://api.dicebear.com/7.x/bottts/svg?seed=Matrix&backgroundColor=a7f3d0',
+  'https://api.dicebear.com/7.x/bottts/svg?seed=Sentinel&backgroundColor=fef08a',
+
+  // 3. Vector Avataaars (Kemaskini Clean & High Res)
+  'https://api.dicebear.com/7.x/avataaars/svg?seed=Aisha',
+  'https://api.dicebear.com/7.x/avataaars/svg?seed=Fatimah',
+  'https://api.dicebear.com/7.x/avataaars/svg?seed=Mariam',
+  'https://api.dicebear.com/7.x/avataaars/svg?seed=Zahra',
+  'https://api.dicebear.com/7.x/avataaars/svg?seed=Ahmad',
+  'https://api.dicebear.com/7.x/avataaars/svg?seed=Khairul',
+  'https://api.dicebear.com/7.x/avataaars/svg?seed=Omar',
+  'https://api.dicebear.com/7.x/avataaars/svg?seed=Farhan',
+
+  // 4. Abstract Geometric Badges
+  'https://api.dicebear.com/7.x/shapes/svg?seed=Shield&backgroundColor=4f46e5',
+  'https://api.dicebear.com/7.x/shapes/svg?seed=AduanWorkspace&backgroundColor=0284c7',
+  'https://api.dicebear.com/7.x/shapes/svg?seed=Integriti&backgroundColor=059669',
+  'https://api.dicebear.com/7.x/shapes/svg?seed=Audit&backgroundColor=d97706',
+  'https://api.dicebear.com/7.x/identicon/svg?seed=Security&backgroundColor=b6e3f4',
+  'https://api.dicebear.com/7.x/identicon/svg?seed=System&backgroundColor=ffd5dc',
+  'https://api.dicebear.com/7.x/identicon/svg?seed=Workspace&backgroundColor=d1d4f9',
+  'https://api.dicebear.com/7.x/identicon/svg?seed=Portal&backgroundColor=c0aede',
+
+  // 5. Minimal Icon Badges & Emojis
+  'https://api.dicebear.com/7.x/icons/svg?seed=Shield&backgroundColor=4f46e5',
+  'https://api.dicebear.com/7.x/icons/svg?seed=Briefcase&backgroundColor=0284c7',
+  'https://api.dicebear.com/7.x/icons/svg?seed=FileText&backgroundColor=059669',
+  'https://api.dicebear.com/7.x/icons/svg?seed=Lock&backgroundColor=7c3aed',
+  'https://api.dicebear.com/7.x/fun-emoji/svg?seed=Star&backgroundColor=ffd5dc',
+  'https://api.dicebear.com/7.x/fun-emoji/svg?seed=Cool&backgroundColor=b6e3f4',
+  'https://api.dicebear.com/7.x/fun-emoji/svg?seed=Smile&backgroundColor=c0aede',
+  'https://api.dicebear.com/7.x/fun-emoji/svg?seed=Happy&backgroundColor=ffdfbf',
 ];
 
 export const SettingsView: React.FC<SettingsViewProps> = ({
@@ -126,64 +165,64 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
       avatar: avatar,
     };
 
-    // 1. Update local accounts store
-    const accounts = await getStoredUserAccounts();
-    const accIdx = accounts.findIndex(a => a.id === currentUser.id || a.username.toLowerCase() === currentUser.username.toLowerCase());
-    let fullAccount: any;
-    if (accIdx !== -1) {
-      accounts[accIdx].name = updated.name;
-      accounts[accIdx].username = updated.username;
-      accounts[accIdx].email = updated.email;
-      accounts[accIdx].avatar = updated.avatar;
-      fullAccount = accounts[accIdx];
-      saveUserAccounts(accounts);
-    } else {
-      fullAccount = {
-        ...updated,
-        passwordHash: await hashPassword('Password123!'),
-        createdAt: new Date().toISOString(),
-        lastLogin: new Date().toISOString(),
-      };
-      accounts.push(fullAccount);
-      saveUserAccounts(accounts);
-    }
-
-    // 2. Sync to Firebase Firestore & Supabase
-    if (db) {
-      try {
-        const cleanAccount = JSON.parse(JSON.stringify(fullAccount));
-        await setDoc(doc(db, 'users', updated.id), cleanAccount, { merge: true });
-      } catch (err) {
-        console.error('Failed to sync profile to Firebase:', err);
-      }
-    }
-
-    const supabase = getSupabaseClient();
-    if (supabase) {
-      try {
-        await supabase.from('users').upsert({
-          id: updated.id,
-          username: updated.username,
-          email: updated.email,
-          name: updated.name,
-          role: updated.role,
-          avatar: updated.avatar,
-          department: updated.department,
-          phone: updated.phone,
-          workspace_id: updated.workspaceId || 'ws-integriti',
-          allowed_views: updated.allowedViews,
-        });
-      } catch (err) {
-        console.error('Failed to sync profile update to Supabase:', err);
-      }
-    }
-
-    // 3. Update React App State & Active Session
+    // 1. UPDATE REACT APP STATE & ACTIVE SESSION IMMEDIATELY (0ms delay!)
     onUpdateUserProfile(updated);
     setAuthSession(updated);
 
-    setSuccessMessage('Maklumat profil (Nama, Username, E-mel & Avatar) berjaya disimpan dan disegerakkan!');
-    setTimeout(() => setSuccessMessage(null), 4000);
+    // 2. SHOW INSTANT PROMINENT SUCCESS NOTE & SCROLL TO TOP
+    setSuccessMessage('✓ Profil anda (Nama, Username, E-mel & Avatar) telah berjaya disimpan dan disegerakkan ke Firebase!');
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+
+    // 3. ASYNCHRONOUS BACKGROUND SYNC TO LOCALSTORAGE, FIREBASE & SUPABASE
+    setTimeout(async () => {
+      try {
+        const accounts = await getStoredUserAccounts();
+        const accIdx = accounts.findIndex(a => a.id === currentUser.id || a.username.toLowerCase() === currentUser.username.toLowerCase());
+        let fullAccount: any;
+        if (accIdx !== -1) {
+          accounts[accIdx].name = updated.name;
+          accounts[accIdx].username = updated.username;
+          accounts[accIdx].email = updated.email;
+          accounts[accIdx].avatar = updated.avatar;
+          fullAccount = accounts[accIdx];
+          saveUserAccounts(accounts);
+        } else {
+          fullAccount = {
+            ...updated,
+            passwordHash: await hashPassword('Password123!'),
+            createdAt: new Date().toISOString(),
+            lastLogin: new Date().toISOString(),
+          };
+          accounts.push(fullAccount);
+          saveUserAccounts(accounts);
+        }
+
+        if (db) {
+          const cleanAccount = JSON.parse(JSON.stringify(fullAccount));
+          await setDoc(doc(db, 'users', updated.id), cleanAccount, { merge: true });
+        }
+
+        const supabase = getSupabaseClient();
+        if (supabase) {
+          await supabase.from('users').upsert({
+            id: updated.id,
+            username: updated.username,
+            email: updated.email,
+            name: updated.name,
+            role: updated.role,
+            avatar: updated.avatar,
+            department: updated.department,
+            phone: updated.phone,
+            workspace_id: updated.workspaceId || 'ws-integriti',
+            allowed_views: updated.allowedViews,
+          });
+        }
+      } catch (err) {
+        console.error('Failed to sync profile update:', err);
+      }
+    }, 10);
+
+    setTimeout(() => setSuccessMessage(null), 6000);
   };
 
   const handleSavePassword = async (e: React.FormEvent) => {
@@ -298,12 +337,14 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
 
       {/* Global Feedback Banners */}
       {successMessage && (
-        <div className="p-4 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs font-bold flex items-center justify-between animate-fade-in shadow-xs">
-          <div className="flex items-center gap-2">
-            <Check className="w-4 h-4 text-emerald-600 shrink-0" />
-            <span>{successMessage}</span>
+        <div className="p-4 rounded-2xl bg-emerald-600 text-white text-xs font-extrabold flex items-center justify-between animate-fade-in shadow-md ring-4 ring-emerald-500/20">
+          <div className="flex items-center gap-2.5">
+            <div className="w-6 h-6 rounded-full bg-white/20 flex items-center justify-center shrink-0">
+              <Check className="w-4 h-4 text-white shrink-0" />
+            </div>
+            <span className="text-sm tracking-wide">{successMessage}</span>
           </div>
-          <button onClick={() => setSuccessMessage(null)} className="text-emerald-600 hover:text-emerald-900">
+          <button onClick={() => setSuccessMessage(null)} className="text-white/80 hover:text-white text-sm font-bold px-2 py-1">
             ✕
           </button>
         </div>
@@ -326,7 +367,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
         {[
           { id: 'profile', label: 'Profil & Maklumat User', icon: User },
           { id: 'password', label: 'Tukar Kata Laluan', icon: Key },
-          { id: 'notifications', label: 'Preferensi Notifikasi', icon: Bell },
+          { id: 'notifications', label: 'Tetapan Notifikasi', icon: Bell },
         ].map((tab) => {
           const Icon = tab.icon;
           const isActive = activeSubTab === tab.id;
@@ -360,6 +401,9 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
               <img
                 src={avatar}
                 alt={name}
+                onError={(e) => {
+                  e.currentTarget.src = `https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(name || 'User')}&backgroundColor=4f46e5`;
+                }}
                 className="w-28 h-28 rounded-full object-cover border-4 border-indigo-100 shadow-md mx-auto"
               />
               <button
@@ -390,21 +434,31 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
             {/* Avatar Selection Options */}
             <div className="pt-4 border-t border-slate-100 text-left space-y-3">
               <label className="block text-xs font-bold text-slate-700 flex items-center justify-between">
-                <span>Pilih Avatar Preset:</span>
-                <span className="text-[10px] text-slate-400">8 Pilihan</span>
+                <span>Pilih Avatar anda:</span>
+                <span className="text-[10px] font-bold text-indigo-600 bg-indigo-50 px-2.5 py-0.5 rounded-full border border-indigo-100">
+                  {PRESET_AVATARS.length} Pilihan General
+                </span>
               </label>
 
-              <div className="grid grid-cols-4 gap-2">
+              <div className="grid grid-cols-4 sm:grid-cols-6 gap-2 max-h-56 overflow-y-auto p-1.5 bg-slate-50 rounded-2xl border border-slate-200 custom-scrollbar">
                 {PRESET_AVATARS.map((url, idx) => (
                   <button
                     key={idx}
                     type="button"
                     onClick={() => setAvatar(url)}
-                    className={`rounded-xl overflow-hidden border-2 transition-all p-0.5 ${
-                      avatar === url ? 'border-indigo-600 ring-2 ring-indigo-500/20 scale-105' : 'border-transparent opacity-70 hover:opacity-100'
+                    className={`rounded-xl overflow-hidden border-2 transition-all p-0.5 bg-white ${
+                      avatar === url ? 'border-indigo-600 ring-2 ring-indigo-500/20 scale-105 shadow-sm' : 'border-transparent opacity-80 hover:opacity-100'
                     }`}
+                    title={`Pilih Avatar #${idx + 1}`}
                   >
-                    <img src={url} alt={`Avatar ${idx}`} className="w-full h-10 object-cover rounded-lg" />
+                    <img 
+                      src={url} 
+                      alt={`Avatar Preset ${idx + 1}`} 
+                      onError={(e) => {
+                        e.currentTarget.src = `https://api.dicebear.com/7.x/initials/svg?seed=P${idx + 1}&backgroundColor=4f46e5`;
+                      }}
+                      className="w-full h-9 object-cover rounded-lg bg-slate-100" 
+                    />
                   </button>
                 ))}
               </div>
@@ -419,7 +473,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                     type="url"
                     value={avatarInputUrl}
                     onChange={(e) => setAvatarInputUrl(e.target.value)}
-                    placeholder="https://images.unsplash.com/..."
+                    placeholder="https://api.dicebear.com/7.x/..."
                     className="flex-1 px-2.5 py-1.5 rounded-lg bg-slate-50 border border-slate-200 text-xs text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-500/20"
                   />
                   <button
@@ -450,7 +504,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
             <div className="border-b border-slate-100 pb-3 flex items-center justify-between">
               <div>
                 <h3 className="text-base font-extrabold text-slate-800">Kemaskini Butiran Akaun User</h3>
-                <p className="text-xs text-slate-400">Sila pastikan maklumat terkini tepat untuk rekod siasatan kes</p>
+                <p className="text-xs text-slate-400">Sila pastikan maklumat terkini adalah tepat</p>
               </div>
             </div>
 
@@ -480,7 +534,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                 <div>
                   <label className="block text-xs font-bold text-slate-700 mb-1 flex items-center gap-1.5">
                     <User className="w-3.5 h-3.5 text-indigo-600" />
-                    <span>Nama Penuh User *</span>
+                    <span>Nama User *</span>
                   </label>
                   <input
                     type="text"
@@ -498,7 +552,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                 <div>
                   <label className="block text-xs font-bold text-slate-700 mb-1 flex items-center gap-1.5">
                     <Mail className="w-3.5 h-3.5 text-indigo-600" />
-                    <span>Alamat Emel Rasmi *</span>
+                    <span>Alamat Emel *</span>
                   </label>
                   <input
                     type="email"
@@ -666,7 +720,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
         <div className="bg-white rounded-2xl p-6 border border-slate-200 shadow-sm space-y-4">
           <h3 className="text-base font-extrabold text-slate-800 flex items-center gap-2">
             <Bell className="w-5 h-5 text-indigo-600" />
-            <span>Preferensi Notifikasi Aduan</span>
+            <span>Tetapan Notifikasi</span>
           </h3>
 
           <div className="space-y-3 text-xs">

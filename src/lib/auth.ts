@@ -125,13 +125,13 @@ async function getInitialAccounts(): Promise<UserAccount[]> {
       name: 'Ahmad Razak',
       username: 'ahmad_razak',
       email: 'ahmad.razak@workspace.gov.my',
-      role: 'Pegawai Aduan Utama',
-      avatar: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150&auto=format&fit=crop&q=80',
+      role: 'Editor',
+      avatar: 'https://api.dicebear.com/7.x/personas/svg?seed=Ahmad&clothingColor=059669',
       workspaceId: 'ws-integriti',
       phone: '+60 19-888 7766',
       department: 'Unit Aduan & Integriti',
       passwordHash: defaultHash,
-      allowedViews: ['dashboard', 'aduan', 'kanban', 'templates', 'linkhub', 'settings'],
+      allowedViews: ['dashboard', 'aduan', 'kanban', 'templates', 'linkhub', 'admin', 'settings'],
       createdAt: new Date().toISOString(),
       lastLogin: new Date().toISOString(),
     },
@@ -140,13 +140,13 @@ async function getInitialAccounts(): Promise<UserAccount[]> {
       name: 'Siti Aminah',
       username: 'siti_aminah',
       email: 'siti.aminah@workspace.gov.my',
-      role: 'Pengguna Awam',
-      avatar: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=150&auto=format&fit=crop&q=80',
+      role: 'Pengguna Biasa',
+      avatar: 'https://api.dicebear.com/7.x/personas/svg?seed=Mariam&clothingColor=8b5cf6&hair=hijab',
       workspaceId: 'ws-awam',
       phone: '+60 12-345 6789',
       department: 'Orang Awam / Pengadu',
       passwordHash: defaultHash,
-      allowedViews: ['dashboard', 'aduan', 'linkhub'],
+      allowedViews: ['dashboard', 'aduan', 'kanban', 'templates', 'linkhub', 'admin', 'settings'],
       createdAt: new Date().toISOString(),
       lastLogin: new Date().toISOString(),
     },
@@ -156,7 +156,7 @@ async function getInitialAccounts(): Promise<UserAccount[]> {
       username: 'admin',
       email: 'admin@workspace.gov.my',
       role: 'Pentadbir Utama',
-      avatar: 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=150&auto=format&fit=crop&q=80',
+      avatar: 'https://api.dicebear.com/7.x/initials/svg?seed=Admin&backgroundColor=4f46e5',
       workspaceId: 'ws-integriti',
       phone: '+60 3-8000 8000',
       department: 'Bahagian Teknologi Maklumat',
@@ -362,15 +362,15 @@ export async function authenticateUser(
         name: formattedName || 'Pengguna Workspace',
         username: cleanId.replace(/[^a-z0-9_]/g, '_'),
         email: cleanId.includes('@') ? cleanId : `${cleanId}@workspace.gov.my`,
-        role: 'Pegawai Aduan',
-        avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80',
+        role: 'Pengguna Biasa',
+        avatar: 'https://api.dicebear.com/7.x/initials/svg?seed=User&backgroundColor=0284c7',
         workspaceId: 'ws-integriti',
         department: 'Unit Aduan & Integriti',
         phone: '+60 12-000 0000',
         passwordHash: inputHash,
         createdAt: new Date().toISOString(),
         lastLogin: new Date().toISOString(),
-        allowedViews: ['dashboard', 'aduan', 'kanban', 'templates', 'linkhub', 'settings'],
+        allowedViews: ['dashboard', 'aduan', 'kanban', 'templates', 'linkhub', 'admin', 'settings'],
       };
       accounts.push(newAcc);
       saveUserAccounts(accounts);
@@ -392,7 +392,7 @@ export async function authenticateUser(
     workspaceId: match.workspaceId,
     department: match.department,
     phone: match.phone,
-    allowedViews: match.allowedViews || ['linkhub'],
+    allowedViews: match.allowedViews || ['dashboard', 'aduan', 'kanban', 'templates', 'linkhub', 'admin', 'settings'],
   };
 
   // Sync to Firebase in background non-blocking
@@ -459,7 +459,7 @@ export async function registerNewUser(data: {
     passwordHash: passwordHash,
     createdAt: new Date().toISOString(),
     lastLogin: new Date().toISOString(),
-    allowedViews: ['linkhub'],
+    allowedViews: ['dashboard', 'aduan', 'kanban', 'templates', 'linkhub', 'admin', 'settings'],
   };
 
   accounts.push(newAcc);
@@ -475,7 +475,7 @@ export async function registerNewUser(data: {
     workspaceId: newAcc.workspaceId,
     department: newAcc.department,
     phone: newAcc.phone,
-    allowedViews: ['linkhub'],
+    allowedViews: ['dashboard', 'aduan', 'kanban', 'templates', 'linkhub', 'admin', 'settings'],
   };
 
   // Sync to Firebase Realtime DB
