@@ -118,6 +118,7 @@ export default function App() {
   const [isGlobalSearchOpen, setIsGlobalSearchOpen] = useState(false);
   const [isQuickActionOpen, setIsQuickActionOpen] = useState(false);
   const [realtimeToast, setRealtimeToast] = useState<string | null>(null);
+  const [isReorderMode, setIsReorderMode] = useState(false);
 
   // Subscribe to Realtime Service Updates
   useEffect(() => {
@@ -292,6 +293,8 @@ export default function App() {
         onOpenWorkspaceModal={() => {}}
         onOpenSupabaseModal={() => setIsSupabaseOpen(true)}
         onOpenLogin={() => setIsLoginModalOpen(true)}
+        isReorderMode={isReorderMode}
+        setIsReorderMode={setIsReorderMode}
       />
 
       {/* Main Content Area */}
@@ -313,6 +316,14 @@ export default function App() {
           onOpenLogin={() => setIsLoginModalOpen(true)}
           onLogout={handleLogout}
           onSimulateRealtime={handleSimulateRealtime}
+          isReorderMode={isReorderMode}
+          onToggleReorderMode={() => {
+            const nextMode = !isReorderMode;
+            setIsReorderMode(nextMode);
+            if (nextMode && !isSidebarOpen) {
+              setIsSidebarOpen(true);
+            }
+          }}
         />
 
         {/* Dynamic Body Content */}

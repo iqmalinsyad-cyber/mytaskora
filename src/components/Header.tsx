@@ -16,7 +16,8 @@ import {
   LogOut,
   LogIn,
   PanelLeft,
-  Activity
+  Activity,
+  SlidersHorizontal
 } from 'lucide-react';
 import { Workspace, UserProfile } from '../types';
 
@@ -37,6 +38,8 @@ interface HeaderProps {
   onLogout?: () => void;
   unreadCount?: number;
   onSimulateRealtime?: () => void;
+  isReorderMode?: boolean;
+  onToggleReorderMode?: () => void;
 }
 
 export const Header: React.FC<HeaderProps> = ({
@@ -55,7 +58,9 @@ export const Header: React.FC<HeaderProps> = ({
   onOpenLogin,
   onLogout,
   unreadCount = 0,
-  onSimulateRealtime
+  onSimulateRealtime,
+  isReorderMode = false,
+  onToggleReorderMode,
 }) => {
   const [isWsDropdownOpen, setIsWsDropdownOpen] = useState(false);
   const [isProfileDropdownOpen, setIsProfileDropdownOpen] = useState(false);
@@ -121,6 +126,31 @@ export const Header: React.FC<HeaderProps> = ({
           <Sparkles className="w-3.5 h-3.5 text-indigo-600 shrink-0" />
           <span className="hidden sm:inline">Ask AI</span>
         </button>
+
+        {/* Special Icon Button: Susun Panel (Admin) */}
+        {isAdmin && onToggleReorderMode && (
+          <button
+            onClick={onToggleReorderMode}
+            className={`flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-lg border transition-all text-xs font-bold shrink-0 cursor-pointer ${
+              isReorderMode
+                ? 'bg-amber-500 text-white border-amber-600 shadow-xs ring-2 ring-amber-300 animate-pulse'
+                : 'bg-amber-50 hover:bg-amber-100 text-amber-900 border-amber-200'
+            }`}
+            title="Susun Kedudukan Panel Menu Belah Kiri (Admin)"
+          >
+            <SlidersHorizontal className={`w-3.5 h-3.5 shrink-0 ${isReorderMode ? 'text-white' : 'text-amber-600'}`} />
+            <span className="hidden md:inline">Susun Panel</span>
+            {isReorderMode ? (
+              <span className="text-[9px] uppercase px-1.5 py-0.2 rounded bg-white/30 font-mono text-white font-extrabold">
+                ON
+              </span>
+            ) : (
+              <span className="hidden sm:inline text-[9px] uppercase px-1.5 py-0.2 rounded bg-amber-200/60 text-amber-950 font-mono font-bold">
+                Admin
+              </span>
+            )}
+          </button>
+        )}
 
         {/* Firebase Cloud Live Sync Badge & Diagnostics Button */}
         <div className="hidden xl:flex items-center gap-1.5 shrink-0">

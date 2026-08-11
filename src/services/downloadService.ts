@@ -1,5 +1,5 @@
-import { db } from '../lib/firebase';
-import { collection, doc, onSnapshot, setDoc, deleteDoc, updateDoc, increment } from 'firebase/firestore';
+import { db, isSystemSeeded, markSystemAsSeeded } from '../lib/firebase';
+import { collection, doc, onSnapshot, setDoc, deleteDoc, updateDoc, increment, getDocs, query, where } from 'firebase/firestore';
 
 export interface DownloadFileItem {
   id: string;
@@ -105,9 +105,9 @@ class DownloadService {
   private initLocal() {
     try {
       const saved = localStorage.getItem(STORAGE_KEY);
-      if (saved) {
+      if (saved !== null) {
         const parsed = JSON.parse(saved);
-        if (Array.isArray(parsed) && parsed.length > 0) {
+        if (Array.isArray(parsed)) {
           this.items = parsed;
         } else {
           this.items = [...INITIAL_DOWNLOAD_ITEMS];
@@ -117,9 +117,9 @@ class DownloadService {
       }
 
       const savedCats = localStorage.getItem(CAT_STORAGE_KEY);
-      if (savedCats) {
+      if (savedCats !== null) {
         const parsedCats = JSON.parse(savedCats);
-        if (Array.isArray(parsedCats) && parsedCats.length > 0) {
+        if (Array.isArray(parsedCats)) {
           this.categories = parsedCats;
         } else {
           this.categories = [...DEFAULT_DOWNLOAD_CATEGORIES];
@@ -151,7 +151,7 @@ class DownloadService {
       const colRef = collection(db, 'download_files');
       onSnapshot(
         colRef,
-        (snapshot) => {
+        async (snapshot) => {
           if (!snapshot.empty) {
             const remoteItems: DownloadFileItem[] = [];
             snapshot.forEach((docSnap) => {
@@ -163,8 +163,15 @@ class DownloadService {
             this.saveLocal();
             this.notify();
           } else {
-            // Seed initial download files if database collection is empty
-            this.seedFirebaseInitial();
+            const seeded = await isSystemSeeded();
+            if (!seeded) {
+              await markSystemAsSeeded();
+              await this.seedFirebaseInitial();
+            } else {
+              this.items = [];
+              this.saveLocal();
+              this.notify();
+            }
           }
         },
         (error) => {
@@ -176,7 +183,7 @@ class DownloadService {
       const catColRef = collection(db, 'download_categories');
       onSnapshot(
         catColRef,
-        (snapshot) => {
+        async (snapshot) => {
           if (!snapshot.empty) {
             const remoteCats: string[] = [];
             snapshot.forEach((docSnap) => {
@@ -185,13 +192,19 @@ class DownloadService {
                 remoteCats.push(data.name);
               }
             });
-            if (remoteCats.length > 0) {
-              this.categories = remoteCats;
+            this.categories = remoteCats;
+            this.saveLocal();
+            this.notifyCategories();
+          } else {
+            const seeded = await isSystemSeeded();
+            if (!seeded) {
+              await markSystemAsSeeded();
+              await this.seedCategoriesInitial();
+            } else {
+              this.categories = [];
               this.saveLocal();
               this.notifyCategories();
             }
-          } else {
-            this.seedCategoriesInitial();
           }
         },
         (error) => {
@@ -305,11 +318,23 @@ class DownloadService {
         const oldId = `cat-${oldName.toLowerCase().replace(/[^a-z0-9]/g, '-')}`;
         const newId = `cat-${trimmedNew.toLowerCase().replace(/[^a-z0-9]/g, '-')}`;
         await deleteDoc(doc(db, 'download_categories', oldId));
+
+        const qSnap = await getDocs(query(collection(db, 'download_categories'), where('name', '==', oldName)));
+        for (const docSnap of qSnap.docs) {
+          await deleteDoc(docSnap.ref);
+        }
+
         await setDoc(doc(db, 'download_categories', newId), {
           id: newId,
           name: trimmedNew,
           updatedAt: new Date().toISOString(),
         });
+
+        // Also update any files in Firestore using old category name
+        const filesSnap = await getDocs(query(collection(db, 'download_files'), where('category', '==', oldName)));
+        for (const fileDoc of filesSnap.docs) {
+          await updateDoc(fileDoc.ref, { category: trimmedNew, updatedAt: new Date().toISOString() });
+        }
       } catch (e) {
         console.error('Error updating category in Firebase:', e);
       }
@@ -324,6 +349,11 @@ class DownloadService {
       try {
         const id = `cat-${catName.toLowerCase().replace(/[^a-z0-9]/g, '-')}`;
         await deleteDoc(doc(db, 'download_categories', id));
+
+        const qSnap = await getDocs(query(collection(db, 'download_categories'), where('name', '==', catName)));
+        for (const docSnap of qSnap.docs) {
+          await deleteDoc(docSnap.ref);
+        }
       } catch (e) {
         console.error('Error deleting category from Firebase:', e);
       }

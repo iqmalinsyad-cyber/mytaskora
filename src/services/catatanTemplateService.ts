@@ -138,19 +138,24 @@ class CatatanTemplateService {
       // 2. Categories document listener
       onSnapshot(
         collection(db, 'catatan_categories'),
-        (snapshot) => {
+        async (snapshot) => {
           if (!snapshot.empty) {
             const cats: string[] = [];
             snapshot.forEach((docSnap) => {
               const data = docSnap.data() as { name: string };
               if (data.name) cats.push(data.name);
             });
-            if (cats.length > 0) {
-              this.categories = cats;
+            this.categories = cats;
+            this.notifyCategories();
+          } else {
+            const seeded = await isSystemSeeded();
+            if (!seeded) {
+              await markSystemAsSeeded();
+              await this.seedCategoriesToFirebase();
+            } else {
+              this.categories = [];
               this.notifyCategories();
             }
-          } else {
-            this.seedCategoriesToFirebase();
           }
         },
         (error) => {

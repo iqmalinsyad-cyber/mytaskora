@@ -1,4 +1,4 @@
-import { db } from '../lib/firebase';
+import { db, isSystemSeeded, markSystemAsSeeded } from '../lib/firebase';
 import { collection, onSnapshot, doc, setDoc, deleteDoc } from 'firebase/firestore';
 import { LaporanAduanItem } from '../types';
 
@@ -54,9 +54,9 @@ class LaporanAduanService {
   private initLocal() {
     try {
       const saved = localStorage.getItem(LAPORAN_STORAGE_KEY);
-      if (saved) {
+      if (saved !== null) {
         const parsed = JSON.parse(saved);
-        if (Array.isArray(parsed) && parsed.length > 0) {
+        if (Array.isArray(parsed)) {
           this.reports = parsed;
           return;
         }
@@ -107,7 +107,7 @@ class LaporanAduanService {
 
       onSnapshot(
         colRef,
-        (snapshot) => {
+        async (snapshot) => {
           if (!snapshot.empty) {
             const remoteList: LaporanAduanItem[] = [];
             snapshot.forEach((docSnap) => {
@@ -139,11 +139,17 @@ class LaporanAduanService {
             this.reports = remoteList;
             this.notify();
           } else {
-            // Seed Firestore with default initial reports if empty
-            DEFAULT_LAPORAN_LIST.forEach((item) => {
-              const docRef = doc(db!, 'laporan_siasatan', item.id);
-              setDoc(docRef, item, { merge: true }).catch(console.error);
-            });
+            const seeded = await isSystemSeeded();
+            if (!seeded) {
+              await markSystemAsSeeded();
+              DEFAULT_LAPORAN_LIST.forEach((item) => {
+                const docRef = doc(db!, 'laporan_siasatan', item.id);
+                setDoc(docRef, item, { merge: true }).catch(console.error);
+              });
+            } else {
+              this.reports = [];
+              this.notify();
+            }
           }
         },
         (error) => {

@@ -50,6 +50,8 @@ interface SidebarProps {
   onOpenSupabaseModal: () => void;
   onOpenLogin?: () => void;
   unreadCount?: number;
+  isReorderMode?: boolean;
+  setIsReorderMode?: (val: boolean) => void;
 }
 
 interface NavItemDef {
@@ -70,9 +72,14 @@ export const Sidebar: React.FC<SidebarProps> = ({
   onOpenWorkspaceModal,
   onOpenSupabaseModal,
   onOpenLogin,
+  isReorderMode: isReorderModeProp,
+  setIsReorderMode: setIsReorderModeProp,
 }) => {
   const [config, setConfig] = useState<SidebarConfig>(() => sidebarConfigService.getConfig());
-  const [isReorderMode, setIsReorderMode] = useState<boolean>(false);
+  const [internalReorderMode, setInternalReorderMode] = useState<boolean>(false);
+
+  const isReorderMode = isReorderModeProp !== undefined ? isReorderModeProp : internalReorderMode;
+  const setIsReorderMode = setIsReorderModeProp || setInternalReorderMode;
 
   useEffect(() => {
     const unsubscribe = sidebarConfigService.subscribe((updatedConfig) => {
@@ -212,30 +219,6 @@ export const Sidebar: React.FC<SidebarProps> = ({
             <X className="w-4 h-4 lg:hidden" />
           </button>
         </div>
-
-        {/* ADMIN SIDEBAR PANEL REORDER TOGGLE BUTTON */}
-        {isAdmin && (
-          <div className="pt-1 border-t border-slate-100 flex items-center justify-between">
-            <button
-              type="button"
-              onClick={() => setIsReorderMode(!isReorderMode)}
-              className={`w-full py-1.5 px-2.5 rounded-xl text-[11px] font-extrabold transition-all flex items-center justify-between border cursor-pointer ${
-                isReorderMode
-                  ? 'bg-amber-500 text-white border-amber-600 shadow-xs ring-2 ring-amber-200'
-                  : 'bg-amber-50/80 text-amber-900 hover:bg-amber-100 border-amber-200'
-              }`}
-              title="Tukar dan susun kedudukan panel menu belah kiri (Disinkronkan ke Firebase)"
-            >
-              <div className="flex items-center gap-1.5">
-                <SlidersHorizontal className="w-3.5 h-3.5 text-amber-600 shrink-0" />
-                <span>⚙️ Susun Panel (Admin)</span>
-              </div>
-              <span className="text-[9px] uppercase px-1.5 py-0.5 rounded-md bg-white/30 font-mono">
-                {isReorderMode ? 'Aktif' : 'Tukar'}
-              </span>
-            </button>
-          </div>
-        )}
       </div>
 
       {/* Navigation Links */}
