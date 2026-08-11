@@ -114,10 +114,34 @@ export interface UserProfile {
   allowedViews?: string[];
 }
 
+export interface LaporanAduanItem {
+  id: string;
+  aduanId?: string;
+  tarikhTerima: string;
+  tarikhSiasatan: string;
+  sumber: string;
+  nama: string;
+  noKp: string;
+  noTel: string;
+  alamat: string;
+  kariah: string;
+  ringkasanPoints: string[];
+  hasilPoints: string[];
+  rekodBantuanPoints: string[];
+  cadanganBantuan: string;
+  tindakanLzsPoints: string[];
+  namaPegawai: string;
+  eoad: string;
+  createdBy?: string;
+  createdAt?: string;
+  updatedAt?: string;
+}
+
 export const ALL_SYSTEM_VIEWS = [
   { id: 'dashboard', label: 'Dashboard & KPI Utama', category: 'Utama' },
   { id: 'calendar', label: 'Kalendar Program', category: 'Utama' },
   { id: 'aduan', label: 'Senarai Aduan', category: 'Utama' },
+  { id: 'laporan_aduan', label: 'Laporan Aduan', category: 'Utama' },
   { id: 'kanban', label: 'Paparan Aduan (Kanban)', category: 'Utama' },
   { id: 'templates', label: 'Format / Template Catatan', category: 'Utama' },
   { id: 'linkhub', label: 'Linkhub Pautan Rujukan', category: 'Rujukan' },

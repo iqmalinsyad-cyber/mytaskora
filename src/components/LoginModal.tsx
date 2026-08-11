@@ -200,7 +200,7 @@ export const LoginModal: React.FC<LoginModalProps> = ({
       </div>
 
       {/* MAIN WHITE CARD CONTAINER */}
-      <div className="bg-white rounded-2xl sm:rounded-3xl w-full max-w-lg shadow-2xl border border-purple-100/40 overflow-hidden relative my-auto p-5 sm:p-8 flex flex-col justify-between max-h-[92vh] sm:max-h-none overflow-y-auto">
+      <div className="bg-white rounded-2xl sm:rounded-3xl w-full max-w-lg shadow-2xl border border-purple-100/40 relative my-auto p-4 sm:p-7 flex flex-col justify-between max-h-[90vh] overflow-y-auto">
         
         {/* Close Button */}
         <button
@@ -406,7 +406,7 @@ export const LoginModal: React.FC<LoginModalProps> = ({
               <form onSubmit={handleRegisterSubmit} className="space-y-3 text-xs">
                 <div>
                   <label className="block text-[11px] font-bold text-slate-700 mb-1">
-                    Nama Penuh <span className="text-rose-500">*</span>
+                    Nama <span className="text-rose-500">*</span>
                   </label>
                   <input
                     type="text"

@@ -704,9 +704,9 @@ export const AdminManagementView: React.FC<AdminManagementViewProps> = ({
                             onClick={() => {
                               const initialViews = u.allowedViews && u.allowedViews.length > 0
                                 ? u.allowedViews
-                                : (u.role === 'Pentadbir Utama'
+                                : (u.role === 'Pentadbir Utama' || u.role === 'Admin'
                                     ? ALL_SYSTEM_VIEWS.map(v => v.id)
-                                    : ALL_SYSTEM_VIEWS.filter(v => v.id !== 'admin').map(v => v.id));
+                                    : ['linkhub', 'settings']);
 
                               setSelectedUser(u);
                               setNewRole(u.role);
@@ -856,8 +856,8 @@ export const AdminManagementView: React.FC<AdminManagementViewProps> = ({
 
       {/* MODAL: ADMIN EDIT USER / RESET PASSWORD */}
       {selectedUser && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/80 backdrop-blur-sm animate-fade-in">
-          <div className="bg-white rounded-3xl w-full max-w-md p-6 shadow-2xl border border-slate-200 space-y-4 relative">
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-2 sm:p-4 bg-slate-900/80 backdrop-blur-xs animate-fade-in overflow-y-auto">
+          <div className="bg-white rounded-3xl w-full max-w-lg p-4 sm:p-6 shadow-2xl border border-slate-200 space-y-4 relative my-auto max-h-[90vh] overflow-y-auto">
             <div className="flex items-center justify-between border-b border-slate-100 pb-3">
               <div className="flex items-center gap-3">
                 <img
@@ -1043,8 +1043,8 @@ export const AdminManagementView: React.FC<AdminManagementViewProps> = ({
 
       {/* MODAL PENGESAHAN PADAM PROFIL PENGGUNA (Custom iframe-friendly modal) */}
       {userToDeleteConfirm && (
-        <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-slate-900/80 backdrop-blur-sm animate-fade-in">
-          <div className="bg-white rounded-3xl w-full max-w-md p-6 shadow-2xl border border-rose-100 space-y-4 text-left">
+        <div className="fixed inset-0 z-[110] flex items-center justify-center p-2 sm:p-4 bg-slate-900/80 backdrop-blur-xs animate-fade-in overflow-y-auto">
+          <div className="bg-white rounded-3xl w-full max-w-md p-5 sm:p-6 shadow-2xl border border-rose-100 space-y-4 text-left my-auto max-h-[90vh]">
             <div className="flex items-center gap-3 text-rose-600 border-b border-slate-100 pb-3">
               <div className="w-10 h-10 rounded-2xl bg-rose-100 flex items-center justify-center text-rose-600 shrink-0">
                 <Trash2 className="w-5 h-5" />

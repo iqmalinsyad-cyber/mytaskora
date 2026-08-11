@@ -102,6 +102,36 @@ export interface UserAccount extends UserProfile {
 }
 
 /**
+ * Helper to check if a specific view tab is allowed for a user.
+ * Rules:
+ * - Pentadbir Utama / Admin: Full access to all views.
+ * - Non-admin roles (Pengguna biasa, Editor, etc.):
+ *   Allowed by default: 'settings' (Tetapan Akaun) & 'linkhub' (Linkhub).
+ *   Other views are ONLY allowed if explicitly enabled by Pentadbir Utama in allowedViews.
+ */
+export function isViewAllowed(viewId: string, currentUser?: UserProfile | null): boolean {
+  if (!currentUser) return true;
+
+  const role = currentUser.role || '';
+  const roleLower = role.toLowerCase();
+  const isAdmin = roleLower.includes('pentadbir') || roleLower.includes('admin');
+
+  // Pentadbir Utama / Admin has full access to all views
+  if (isAdmin) return true;
+
+  // For Pengguna biasa and Editor (and other non-admin roles):
+  // Always allowed views: Tetapan Akaun, Linkhub, & Koleksi Download
+  if (viewId === 'settings' || viewId === 'linkhub' || viewId === 'downloads') return true;
+
+  // Allowed if explicitly permitted in allowedViews by Admin
+  if (currentUser.allowedViews && Array.isArray(currentUser.allowedViews)) {
+    return currentUser.allowedViews.includes(viewId);
+  }
+
+  return false;
+}
+
+/**
  * Default Seeded Accounts for local development & fallback
  */
 async function getInitialAccounts(): Promise<UserAccount[]> {
@@ -116,7 +146,7 @@ async function getInitialAccounts(): Promise<UserAccount[]> {
       email: 'sarah.adams@workspace.gov.my',
       role: 'Pentadbir Utama',
       passwordHash: defaultHash,
-      allowedViews: ['dashboard', 'aduan', 'kanban', 'templates', 'linkhub', 'admin', 'settings'],
+      allowedViews: ['dashboard', 'calendar', 'aduan', 'kanban', 'templates', 'linkhub', 'admin', 'settings'],
       createdAt: new Date().toISOString(),
       lastLogin: new Date().toISOString(),
     },
@@ -131,7 +161,7 @@ async function getInitialAccounts(): Promise<UserAccount[]> {
       phone: '+60 19-888 7766',
       department: 'Unit Aduan & Integriti',
       passwordHash: defaultHash,
-      allowedViews: ['dashboard', 'aduan', 'kanban', 'templates', 'linkhub', 'admin', 'settings'],
+      allowedViews: ['linkhub', 'settings'],
       createdAt: new Date().toISOString(),
       lastLogin: new Date().toISOString(),
     },
@@ -146,7 +176,7 @@ async function getInitialAccounts(): Promise<UserAccount[]> {
       phone: '+60 12-345 6789',
       department: 'Orang Awam / Pengadu',
       passwordHash: defaultHash,
-      allowedViews: ['dashboard', 'aduan', 'kanban', 'templates', 'linkhub', 'admin', 'settings'],
+      allowedViews: ['linkhub', 'settings'],
       createdAt: new Date().toISOString(),
       lastLogin: new Date().toISOString(),
     },
@@ -161,7 +191,7 @@ async function getInitialAccounts(): Promise<UserAccount[]> {
       phone: '+60 3-8000 8000',
       department: 'Bahagian Teknologi Maklumat',
       passwordHash: defaultHash,
-      allowedViews: ['dashboard', 'aduan', 'kanban', 'templates', 'linkhub', 'admin', 'settings'],
+      allowedViews: ['dashboard', 'calendar', 'aduan', 'kanban', 'templates', 'linkhub', 'admin', 'settings'],
       createdAt: new Date().toISOString(),
       lastLogin: new Date().toISOString(),
     }
@@ -370,7 +400,7 @@ export async function authenticateUser(
         passwordHash: inputHash,
         createdAt: new Date().toISOString(),
         lastLogin: new Date().toISOString(),
-        allowedViews: ['dashboard', 'aduan', 'kanban', 'templates', 'linkhub', 'admin', 'settings'],
+        allowedViews: ['linkhub', 'settings'],
       };
       accounts.push(newAcc);
       saveUserAccounts(accounts);
@@ -392,7 +422,7 @@ export async function authenticateUser(
     workspaceId: match.workspaceId,
     department: match.department,
     phone: match.phone,
-    allowedViews: match.allowedViews || ['dashboard', 'aduan', 'kanban', 'templates', 'linkhub', 'admin', 'settings'],
+    allowedViews: match.allowedViews || ['linkhub', 'settings'],
   };
 
   // Sync to Firebase in background non-blocking
@@ -459,7 +489,7 @@ export async function registerNewUser(data: {
     passwordHash: passwordHash,
     createdAt: new Date().toISOString(),
     lastLogin: new Date().toISOString(),
-    allowedViews: ['dashboard', 'aduan', 'kanban', 'templates', 'linkhub', 'admin', 'settings'],
+    allowedViews: ['linkhub', 'settings'],
   };
 
   accounts.push(newAcc);
@@ -475,7 +505,7 @@ export async function registerNewUser(data: {
     workspaceId: newAcc.workspaceId,
     department: newAcc.department,
     phone: newAcc.phone,
-    allowedViews: ['dashboard', 'aduan', 'kanban', 'templates', 'linkhub', 'admin', 'settings'],
+    allowedViews: ['linkhub', 'settings'],
   };
 
   // Sync to Firebase Realtime DB

@@ -40,8 +40,8 @@ export const GlobalSearchModal: React.FC<GlobalSearchModalProps> = ({
     : cases.slice(0, 5);
 
   return (
-    <div className="fixed inset-0 z-50 flex items-start justify-center pt-20 p-4 bg-black/50 backdrop-blur-xs animate-fade-in">
-      <div className="bg-white rounded-2xl w-full max-w-xl overflow-hidden shadow-2xl border border-slate-200 flex flex-col">
+    <div className="fixed inset-0 z-[100] flex items-start justify-center pt-10 sm:pt-20 p-2 sm:p-4 bg-black/50 backdrop-blur-xs animate-fade-in overflow-y-auto">
+      <div className="bg-white rounded-2xl w-full max-w-xl overflow-hidden shadow-2xl border border-slate-200 flex flex-col my-auto sm:my-0 max-h-[85vh]">
         {/* Search Input Bar */}
         <div className="p-4 border-b border-slate-100 flex items-center gap-3">
           <Search className="w-5 h-5 text-slate-400" />

@@ -18,7 +18,7 @@ import {
   Filter,
   RefreshCw
 } from 'lucide-react';
-import { FormatTemplate, AduanCase } from '../types';
+import { FormatTemplate, AduanCase, UserProfile } from '../types';
 import { FORMAT_TEMPLATES } from '../data/mockData';
 import { catatanTemplateService } from '../services/catatanTemplateService';
 
@@ -26,14 +26,19 @@ interface CatatanFormatViewProps {
   cases: AduanCase[];
   onAddNote: (aduanId: string, noteData: any) => Promise<void>;
   preselectedCaseId?: string;
+  currentUser?: UserProfile;
 }
 
 export const CatatanFormatView: React.FC<CatatanFormatViewProps> = ({
   cases,
   preselectedCaseId,
+  currentUser,
 }) => {
   const [templates, setTemplates] = useState<FormatTemplate[]>(() => catatanTemplateService.getTemplates());
   const [categories, setCategories] = useState<string[]>(() => catatanTemplateService.getCategories());
+
+  const roleLower = (currentUser?.role || '').toLowerCase();
+  const isAdmin = roleLower.includes('pentadbir') || roleLower.includes('admin');
 
   useEffect(() => {
     const unsubTemplates = catatanTemplateService.subscribeTemplates((ts) => {
@@ -257,13 +262,15 @@ export const CatatanFormatView: React.FC<CatatanFormatViewProps> = ({
           </p>
         </div>
 
-        <button
-          onClick={handleOpenAddModal}
-          className="px-4 py-2 rounded-lg bg-indigo-600 text-white text-xs font-bold hover:bg-indigo-700 transition-all shadow-xs flex items-center gap-1.5 self-start sm:self-auto shrink-0"
-        >
-          <Plus className="w-4 h-4 text-white" />
-          <span>Tambah Format</span>
-        </button>
+        {isAdmin && (
+          <button
+            onClick={handleOpenAddModal}
+            className="px-4 py-2 rounded-lg bg-indigo-600 text-white text-xs font-bold hover:bg-indigo-700 transition-all shadow-xs flex items-center gap-1.5 self-start sm:self-auto shrink-0 cursor-pointer"
+          >
+            <Plus className="w-4 h-4 text-white" />
+            <span>Tambah Format (Admin)</span>
+          </button>
+        )}
       </div>
 
       {/* Carian & Penapis Format Bar */}
@@ -360,27 +367,29 @@ export const CatatanFormatView: React.FC<CatatanFormatViewProps> = ({
                     </span>
                     
                     {/* Action Edit & Delete Buttons */}
-                    <div className="flex items-center gap-1">
-                      <button
-                        type="button"
-                        onClick={(e) => handleOpenEditModal(fmt, e)}
-                        title="Kemaskini Format"
-                        className="p-1 rounded-md text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 transition-colors"
-                      >
-                        <Pencil className="w-3.5 h-3.5" />
-                      </button>
-                      <button
-                        type="button"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setDeleteConfirmFmt(fmt);
-                        }}
-                        title="Padam Format"
-                        className="p-1 rounded-md text-slate-400 hover:text-rose-600 hover:bg-rose-50 transition-colors"
-                      >
-                        <Trash2 className="w-3.5 h-3.5" />
-                      </button>
-                    </div>
+                    {isAdmin && (
+                      <div className="flex items-center gap-1">
+                        <button
+                          type="button"
+                          onClick={(e) => handleOpenEditModal(fmt, e)}
+                          title="Kemaskini Format"
+                          className="p-1 rounded-md text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 transition-colors"
+                        >
+                          <Pencil className="w-3.5 h-3.5" />
+                        </button>
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setDeleteConfirmFmt(fmt);
+                          }}
+                          title="Padam Format"
+                          className="p-1 rounded-md text-slate-400 hover:text-rose-600 hover:bg-rose-50 transition-colors"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
+                    )}
                   </div>
                 </div>
                 <h4 className="text-xs font-bold text-slate-800 leading-snug">{fmt.title}</h4>
@@ -500,10 +509,10 @@ export const CatatanFormatView: React.FC<CatatanFormatViewProps> = ({
 
       {/* Modal Tambah / Kemaskini Format & Kategori Bantuan */}
       {isModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs animate-fade-in">
-          <div className="bg-white rounded-3xl w-full max-w-2xl overflow-hidden shadow-2xl border border-slate-200 flex flex-col max-h-[92vh]">
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-2 sm:p-4 bg-black/60 backdrop-blur-xs animate-fade-in overflow-y-auto">
+          <div className="bg-white rounded-3xl w-full max-w-2xl overflow-hidden shadow-2xl border border-slate-200 flex flex-col my-auto max-h-[90vh]">
             {/* Modal Header */}
-            <div className="bg-slate-900 text-white p-5 flex items-center justify-between border-b border-slate-800">
+            <div className="bg-slate-900 text-white p-4 sm:p-5 flex items-center justify-between border-b border-slate-800 shrink-0">
               <div className="flex items-center gap-3">
                 <div className="w-10 h-10 rounded-xl bg-indigo-600 text-white flex items-center justify-center font-bold">
                   <FolderPlus className="w-5 h-5" />
@@ -676,8 +685,8 @@ export const CatatanFormatView: React.FC<CatatanFormatViewProps> = ({
 
       {/* Modal Pengesahan Padam */}
       {deleteConfirmFmt && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs animate-fade-in">
-          <div className="bg-white rounded-2xl w-full max-w-md overflow-hidden shadow-2xl border border-slate-200 p-6 space-y-4">
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-2 sm:p-4 bg-black/60 backdrop-blur-xs animate-fade-in overflow-y-auto">
+          <div className="bg-white rounded-2xl w-full max-w-md overflow-hidden shadow-2xl border border-slate-200 p-5 sm:p-6 space-y-4 my-auto max-h-[90vh]">
             <div className="flex items-center gap-3 text-rose-600">
               <div className="w-10 h-10 rounded-xl bg-rose-100 flex items-center justify-center font-bold shrink-0">
                 <Trash2 className="w-5 h-5 text-rose-600" />

@@ -104,6 +104,9 @@ export const LinkHubView: React.FC<LinkHubViewProps> = ({ currentUser }) => {
   // Delete Confirmation State
   const [deletingId, setDeletingId] = useState<string | null>(null);
 
+  const roleLower = (currentUser?.role || '').toLowerCase();
+  const isAdmin = roleLower.includes('pentadbir') || roleLower.includes('admin');
+
   useEffect(() => {
     setIsLoading(true);
     const unsub = linkhubService.subscribe((data) => {
@@ -403,13 +406,15 @@ export const LinkHubView: React.FC<LinkHubViewProps> = ({ currentUser }) => {
             </div>
           </div>
 
-          <button
-            onClick={handleOpenAddModal}
-            className="px-4 py-3 rounded-2xl bg-indigo-600 hover:bg-indigo-500 text-white font-extrabold text-xs transition-all flex items-center gap-2 shadow-lg hover:shadow-indigo-500/25 shrink-0"
-          >
-            <Plus className="w-4 h-4" />
-            <span>Tambah Pautan Baharu</span>
-          </button>
+          {isAdmin && (
+            <button
+              onClick={handleOpenAddModal}
+              className="px-4 py-3 rounded-2xl bg-indigo-600 hover:bg-indigo-500 text-white font-extrabold text-xs transition-all flex items-center gap-2 shadow-lg hover:shadow-indigo-500/25 shrink-0 cursor-pointer"
+            >
+              <Plus className="w-4 h-4" />
+              <span>Tambah Pautan Baharu (Admin)</span>
+            </button>
+          )}
         </div>
       </div>
 
@@ -463,31 +468,33 @@ export const LinkHubView: React.FC<LinkHubViewProps> = ({ currentUser }) => {
                   <div className="flex items-start justify-between gap-2 mb-2">
                     {renderFaviconAndIcon(link, true)}
 
-                    <div className="flex items-center gap-1">
-                      <button
-                        onClick={() => handleTogglePin(link.id)}
-                        className="p-1.5 rounded-lg text-indigo-600 hover:bg-indigo-100 transition-colors"
-                        title="Nyahsemat pautan"
-                      >
-                        <Pin className="w-3.5 h-3.5 fill-indigo-600" />
-                      </button>
+                    {isAdmin && (
+                      <div className="flex items-center gap-1">
+                        <button
+                          onClick={() => handleTogglePin(link.id)}
+                          className="p-1.5 rounded-lg text-indigo-600 hover:bg-indigo-100 transition-colors"
+                          title="Nyahsemat pautan"
+                        >
+                          <Pin className="w-3.5 h-3.5 fill-indigo-600" />
+                        </button>
 
-                      <button
-                        onClick={() => handleOpenEditModal(link)}
-                        className="p-1.5 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors"
-                        title="Edit Pautan"
-                      >
-                        <Edit3 className="w-3.5 h-3.5" />
-                      </button>
+                        <button
+                          onClick={() => handleOpenEditModal(link)}
+                          className="p-1.5 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors"
+                          title="Edit Pautan"
+                        >
+                          <Edit3 className="w-3.5 h-3.5" />
+                        </button>
 
-                      <button
-                        onClick={() => setDeletingId(link.id)}
-                        className="p-1.5 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 transition-colors"
-                        title="Padam Pautan"
-                      >
-                        <Trash2 className="w-3.5 h-3.5" />
-                      </button>
-                    </div>
+                        <button
+                          onClick={() => setDeletingId(link.id)}
+                          className="p-1.5 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 transition-colors"
+                          title="Padam Pautan"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
+                    )}
                   </div>
 
                   <h3 className="font-extrabold text-slate-900 text-sm line-clamp-1 group-hover:text-indigo-600 transition-colors">
@@ -577,31 +584,33 @@ export const LinkHubView: React.FC<LinkHubViewProps> = ({ currentUser }) => {
                   <div className="flex items-start justify-between gap-2 mb-2">
                     {renderFaviconAndIcon(link, false)}
 
-                    <div className="flex items-center gap-1">
-                      <button
-                        onClick={() => handleTogglePin(link.id)}
-                        className="p-1.5 rounded-lg text-slate-300 hover:text-indigo-600 hover:bg-indigo-50 transition-colors"
-                        title="Semat pautan"
-                      >
-                        <Pin className="w-3.5 h-3.5" />
-                      </button>
+                    {isAdmin && (
+                      <div className="flex items-center gap-1">
+                        <button
+                          onClick={() => handleTogglePin(link.id)}
+                          className="p-1.5 rounded-lg text-slate-300 hover:text-indigo-600 hover:bg-indigo-50 transition-colors"
+                          title="Semat pautan"
+                        >
+                          <Pin className="w-3.5 h-3.5" />
+                        </button>
 
-                      <button
-                        onClick={() => handleOpenEditModal(link)}
-                        className="p-1.5 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors"
-                        title="Edit Pautan"
-                      >
-                        <Edit3 className="w-3.5 h-3.5" />
-                      </button>
+                        <button
+                          onClick={() => handleOpenEditModal(link)}
+                          className="p-1.5 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors"
+                          title="Edit Pautan"
+                        >
+                          <Edit3 className="w-3.5 h-3.5" />
+                        </button>
 
-                      <button
-                        onClick={() => setDeletingId(link.id)}
-                        className="p-1.5 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 transition-colors"
-                        title="Padam Pautan"
-                      >
-                        <Trash2 className="w-3.5 h-3.5" />
-                      </button>
-                    </div>
+                        <button
+                          onClick={() => setDeletingId(link.id)}
+                          className="p-1.5 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 transition-colors"
+                          title="Padam Pautan"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
+                    )}
                   </div>
 
                   <h3 className="font-extrabold text-slate-900 text-sm line-clamp-1 group-hover:text-indigo-600 transition-colors">
@@ -655,8 +664,8 @@ export const LinkHubView: React.FC<LinkHubViewProps> = ({ currentUser }) => {
 
       {/* MODAL: ADD / EDIT LINK */}
       {isModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/80 backdrop-blur-sm animate-fade-in">
-          <div className="bg-white rounded-3xl w-full max-w-lg p-6 shadow-2xl border border-slate-200 space-y-4 relative max-h-[90vh] overflow-y-auto">
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-2 sm:p-4 bg-slate-900/80 backdrop-blur-xs animate-fade-in overflow-y-auto">
+          <div className="bg-white rounded-3xl w-full max-w-lg p-4 sm:p-6 shadow-2xl border border-slate-200 space-y-4 relative my-auto max-h-[90vh] overflow-y-auto">
             <div className="flex items-center justify-between border-b border-slate-100 pb-3">
               <div className="flex items-center gap-2.5">
                 <div className="p-2 rounded-xl bg-indigo-50 text-indigo-600">

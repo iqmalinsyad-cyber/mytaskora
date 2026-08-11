@@ -23,9 +23,11 @@ import { SettingsView } from './components/SettingsView';
 import { LoginModal } from './components/LoginModal';
 import { AdminManagementView } from './components/AdminManagementView';
 import { LinkHubView } from './components/LinkHubView';
+import { DownloadCenterView } from './components/DownloadCenterView';
 import { CalendarView } from './components/CalendarView';
+import { LaporanAduanView } from './components/LaporanAduanView';
 import { DashboardCalendarWidget } from './components/DashboardCalendarWidget';
-import { getActiveAuthSession, setAuthSession, clearAuthSession, recordLogout, setupUsersRealtimeSubscription } from './lib/auth';
+import { getActiveAuthSession, setAuthSession, clearAuthSession, recordLogout, setupUsersRealtimeSubscription, isViewAllowed } from './lib/auth';
 import { BookOpen, Users, Settings, ShieldAlert, Sparkles, Building2 } from 'lucide-react';
 
 export default function App() {
@@ -62,9 +64,11 @@ export default function App() {
     } catch (e) {
       console.error(e);
     }
-    if (currentUser?.allowedViews && currentUser.allowedViews.length > 0) {
-      if (activeTab !== 'admin' && activeTab !== 'settings' && !currentUser.allowedViews.includes(activeTab)) {
-        setActiveTab(currentUser.allowedViews[0]);
+    if (!isViewAllowed(activeTab, currentUser)) {
+      if (isViewAllowed('linkhub', currentUser)) {
+        setActiveTab('linkhub');
+      } else {
+        setActiveTab('settings');
       }
     }
   }, [currentUser]);
@@ -84,10 +88,12 @@ export default function App() {
     setCurrentUser(user);
     setIsAuthenticated(true);
     setIsLoginModalOpen(false);
-    if (user.allowedViews && user.allowedViews.length > 0) {
-      setActiveTab(user.allowedViews.includes('dashboard') ? 'dashboard' : user.allowedViews[0]);
-    } else {
+    if (isViewAllowed('dashboard', user)) {
+      setActiveTab('dashboard');
+    } else if (isViewAllowed('linkhub', user)) {
       setActiveTab('linkhub');
+    } else {
+      setActiveTab('settings');
     }
     setRealtimeToast(`🔓 Log Masuk Berjaya! Selamat kembali, ${user.name}`);
     setTimeout(() => setRealtimeToast(null), 4000);
@@ -359,6 +365,10 @@ export default function App() {
             />
           )}
 
+          {activeTab === 'laporan_aduan' && (
+            <LaporanAduanView currentUser={currentUser} cases={workspaceCases} />
+          )}
+
           {activeTab === 'kanban' && (
             <AduanKanban
               cases={workspaceCases}
@@ -373,6 +383,7 @@ export default function App() {
               cases={workspaceCases}
               onAddNote={handleAddNote}
               preselectedCaseId={selectedCase?.id}
+              currentUser={currentUser}
             />
           )}
 
@@ -380,28 +391,35 @@ export default function App() {
             <LinkHubView currentUser={currentUser} />
           )}
 
+          {activeTab === 'downloads' && (
+            <DownloadCenterView currentUser={currentUser} />
+          )}
+
           {activeTab === 'calendar' && (
             <CalendarView currentUser={currentUser} />
           )}
 
           {/* Access Control Guard Notice */}
-          {currentUser?.allowedViews && currentUser.allowedViews.length > 0 && activeTab !== 'admin' && activeTab !== 'settings' && activeTab !== 'calendar' && !currentUser.allowedViews.includes(activeTab) && (
+          {!isViewAllowed(activeTab, currentUser) && (
             <div className="bg-white rounded-3xl p-8 border border-slate-200 shadow-sm text-center max-w-lg mx-auto space-y-4 my-12">
               <div className="w-16 h-16 rounded-full bg-rose-50 text-rose-600 flex items-center justify-center mx-auto">
                 <ShieldAlert className="w-8 h-8" />
               </div>
               <h3 className="text-lg font-extrabold text-slate-800">Akses Paparan Dihadkan</h3>
               <p className="text-xs text-slate-500 font-medium leading-relaxed">
-                Pentadbir sistem belum memberi kebenaran kepada akaun anda untuk mengakses bahagian paparan ini. Sila hubungi Pentadbir Utama jika anda memerlukan akses tambahan.
+                Akaun anda ({currentUser?.role || 'Pengguna'}) secara lalai hanya dibenarkan mengakses <strong>Tetapan Akaun</strong> dan <strong>Linkhub</strong>. Sila hubungi Pentadbir Utama jika anda memerlukan akses fungsi tambahan.
               </p>
               <button
                 onClick={() => {
-                  const firstAllowed = currentUser.allowedViews?.[0] || 'dashboard';
-                  setActiveTab(firstAllowed);
+                  if (isViewAllowed('linkhub', currentUser)) {
+                    setActiveTab('linkhub');
+                  } else {
+                    setActiveTab('settings');
+                  }
                 }}
                 className="px-5 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold transition-all shadow-xs"
               >
-                Kembali ke Paparan Utama
+                Ke Paparan Linkhub
               </button>
             </div>
           )}

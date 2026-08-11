@@ -1,1 +1,28 @@
 @import "tailwindcss";
+
+@media print {
+  body {
+    background-color: #ffffff !important;
+    color: #000000 !important;
+  }
+  .no-print {
+    display: none !important;
+  }
+  .printable-document, .printable-document * {
+    visibility: visible !important;
+  }
+  .printable-document {
+    position: absolute !important;
+    left: 0 !important;
+    top: 0 !important;
+    width: 100% !important;
+    margin: 0 !important;
+    padding: 20px !important;
+    background: #ffffff !important;
+    color: #000000 !important;
+    font-family: monospace, Courier, sans-serif !important;
+    font-size: 12pt !important;
+    line-height: 1.6 !important;
+  }
+}
+
