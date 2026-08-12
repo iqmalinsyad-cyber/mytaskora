@@ -1,5 +1,24 @@
 @import "tailwindcss";
 
+@keyframes marqueeRight {
+  0% {
+    transform: translateX(-100%);
+  }
+  100% {
+    transform: translateX(100%);
+  }
+}
+
+.animate-marquee-right {
+  display: inline-block;
+  white-space: nowrap;
+  animation: marqueeRight 18s linear infinite;
+}
+
+.animate-marquee-right:hover {
+  animation-play-state: paused;
+}
+
 @media print {
   body {
     background-color: #ffffff !important;
@@ -25,4 +44,5 @@
     line-height: 1.6 !important;
   }
 }
+
 

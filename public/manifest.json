@@ -1,0 +1,22 @@
+{
+  "short_name": "ROAMDESK",
+  "name": "ROAMDESK WORKSPACE",
+  "icons": [
+    {
+      "src": "https://lh3.googleusercontent.com/d/1h_USrRQ2SoAuns1D6u1jufnonAvTRq58",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "https://lh3.googleusercontent.com/d/1h_USrRQ2SoAuns1D6u1jufnonAvTRq58",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ],
+  "start_url": "/",
+  "background_color": "#0f172a",
+  "theme_color": "#4f46e5",
+  "display": "standalone"
+}

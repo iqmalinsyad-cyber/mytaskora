@@ -212,17 +212,18 @@ export const LoginModal: React.FC<LoginModalProps> = ({
         </button>
 
         {/* 1. CARD TOP NAVIGATION / BRANDING HEADER */}
-        <div className="flex items-center justify-between pb-4 border-b border-slate-100 pr-10 sm:pr-0">
-          <div className="flex items-center gap-2.5 sm:gap-3">
-            <SystemLogo size={32} />
-            <div className="flex flex-col sm:flex-row sm:items-center gap-0.5 sm:gap-2">
-              <div className="flex items-center gap-1">
-                <span className="text-base sm:text-xl font-extrabold tracking-tight text-slate-900 font-sans">TASKORA</span>
-                <span className="text-base sm:text-xl font-black text-indigo-600 tracking-tight">WORKSPACE</span>
+        <div className="flex flex-col sm:flex-row items-center sm:items-center justify-between pb-5 border-b border-slate-100 gap-3 text-center sm:text-left pr-8 sm:pr-0">
+          <div className="flex flex-col sm:flex-row items-center gap-3 sm:gap-5">
+            <SystemLogo size={120} className="w-24 h-24 sm:w-28 sm:h-28 object-contain shrink-0 drop-shadow-xs" />
+            <div className="flex flex-col items-center sm:items-start gap-1">
+              <div className="flex items-center gap-1.5 flex-wrap justify-center sm:justify-start">
+                <span className="text-xl sm:text-2xl font-extrabold tracking-tight text-slate-900 font-sans">ROAMDESK</span>
+                <span className="text-xl sm:text-2xl font-black text-indigo-600 tracking-tight">WORKSPACE</span>
+                <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-indigo-50 text-indigo-700 border border-indigo-100 uppercase tracking-wide">
+                  Versi 1.0
+                </span>
               </div>
-              <span className="text-[9px] sm:text-[10px] font-bold px-2 py-0.5 rounded-full bg-indigo-50 text-indigo-700 border border-indigo-100 uppercase tracking-wide w-max">
-                Versi 1.0
-              </span>
+              <p className="text-xs font-bold tracking-widest text-slate-500 uppercase">WORK . ACCESS . ANYWHERE</p>
             </div>
           </div>
         </div>
@@ -501,7 +502,7 @@ export const LoginModal: React.FC<LoginModalProps> = ({
           </div>
 
           <div className="flex items-center gap-4 text-slate-500 font-medium">
-            <button type="button" onClick={() => alert('Sistem TASKORA WORKSPACE - Terma & Syarat Penggunaan Hak Cipta 2026.')} className="hover:text-indigo-600 transition-colors">
+            <button type="button" onClick={() => alert('Sistem ROAMDESK WORKSPACE - Terma & Syarat Penggunaan Hak Cipta 2026.')} className="hover:text-indigo-600 transition-colors">
               Term & Condition
             </button>
             <button type="button" onClick={() => alert('Dasar Privasi - Data dienkripsi SHA-256.')} className="hover:text-indigo-600 transition-colors">

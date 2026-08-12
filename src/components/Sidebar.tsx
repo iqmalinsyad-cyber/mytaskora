@@ -26,7 +26,8 @@ import {
   GripVertical,
   SlidersHorizontal,
   RotateCcw,
-  Download
+  Download,
+  StickyNote
 } from 'lucide-react';
 import { Workspace, UserProfile } from '../types';
 import { SystemLogo } from './SystemLogo';
@@ -110,6 +111,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
     templates: { id: 'templates', label: 'Format / Template Catatan', icon: FileText },
     linkhub: { id: 'linkhub', label: 'Linkhub', icon: FolderGit2, badge: 'Baharu' },
     downloads: { id: 'downloads', label: 'Koleksi Download', icon: Download, badge: 'Baharu' },
+    notes: { id: 'notes', label: 'Nota / Ref Notes', icon: StickyNote, badge: 'Baharu' },
     admin: { id: 'admin', label: 'Pentadbiran & Audit User', icon: ShieldCheck },
     login: { id: 'login', label: 'Log Masuk (Encrypted)', icon: Lock, action: onOpenLogin },
     settings: { id: 'settings', label: 'Tetapan Akaun', icon: Settings },
@@ -203,9 +205,9 @@ export const Sidebar: React.FC<SidebarProps> = ({
       <div className="p-4 border-b border-slate-100 space-y-3">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2.5">
-            <SystemLogo size={32} />
+            <SystemLogo size={36} />
             <div>
-              <h1 className="font-bold text-slate-900 text-sm tracking-tight leading-none">TASKORA</h1>
+              <h1 className="font-bold text-slate-900 text-sm tracking-tight leading-none">ROAMDESK</h1>
               <span className="text-[10px] text-slate-400 font-medium">Your Smart Workspace</span>
             </div>
           </div>

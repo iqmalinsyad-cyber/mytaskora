@@ -27,6 +27,7 @@ import { DownloadCenterView } from './components/DownloadCenterView';
 import { CalendarView } from './components/CalendarView';
 import { LaporanAduanView } from './components/LaporanAduanView';
 import { DashboardCalendarWidget } from './components/DashboardCalendarWidget';
+import { NotesView } from './components/NotesView';
 import { getActiveAuthSession, setAuthSession, clearAuthSession, recordLogout, setupUsersRealtimeSubscription, isViewAllowed } from './lib/auth';
 import { BookOpen, Users, Settings, ShieldAlert, Sparkles, Building2 } from 'lucide-react';
 
@@ -330,7 +331,7 @@ export default function App() {
         <main className="p-3 sm:p-5 lg:p-6 flex-1 overflow-y-auto w-full space-y-4 lg:space-y-5">
           {activeTab === 'dashboard' && (
             <>
-              {/* Featured Daily Brief Banner */}
+              {/* Featured Daily Brief Banner with Moving Ticker */}
               <DailyBriefBanner
                 currentUser={currentUser}
                 dateRange={dateRange}
@@ -340,14 +341,8 @@ export default function App() {
                 onViewBriefSummary={() => setActiveTab('aduan')}
               />
 
-              {/* KPI Cards */}
-              <KpiCards cases={workspaceCases} />
-
               {/* Upcoming Programs Calendar Widget */}
               <DashboardCalendarWidget onOpenCalendar={() => setActiveTab('calendar')} />
-
-              {/* Charts Section */}
-              <AduanCharts />
 
               {/* Quick Table View for Active Complaints */}
               <AduanList
@@ -404,6 +399,10 @@ export default function App() {
 
           {activeTab === 'downloads' && (
             <DownloadCenterView currentUser={currentUser} />
+          )}
+
+          {activeTab === 'notes' && (
+            <NotesView currentUser={currentUser} />
           )}
 
           {activeTab === 'calendar' && (

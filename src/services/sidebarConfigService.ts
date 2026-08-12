@@ -12,7 +12,7 @@ export const DEFAULT_OVERVIEW_NAV = [
   'templates',
 ];
 
-export const DEFAULT_WORKSPACE_NAV = ['linkhub', 'downloads'];
+export const DEFAULT_WORKSPACE_NAV = ['linkhub', 'downloads', 'notes'];
 
 export const DEFAULT_SYSTEM_NAV = ['admin', 'login', 'settings'];
 

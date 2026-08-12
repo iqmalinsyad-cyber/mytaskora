@@ -120,8 +120,8 @@ export function isViewAllowed(viewId: string, currentUser?: UserProfile | null):
   if (isAdmin) return true;
 
   // For Pengguna biasa and Editor (and other non-admin roles):
-  // Always allowed views: Tetapan Akaun, Linkhub, & Koleksi Download
-  if (viewId === 'settings' || viewId === 'linkhub' || viewId === 'downloads') return true;
+  // Always allowed views: Tetapan Akaun, Linkhub, Koleksi Download, & Notes
+  if (viewId === 'settings' || viewId === 'linkhub' || viewId === 'downloads' || viewId === 'notes') return true;
 
   // Allowed if explicitly permitted in allowedViews by Admin
   if (currentUser.allowedViews && Array.isArray(currentUser.allowedViews)) {
