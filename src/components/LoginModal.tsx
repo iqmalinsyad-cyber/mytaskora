@@ -341,7 +341,7 @@ export const LoginModal: React.FC<LoginModalProps> = ({
                 <div className="flex items-center justify-between pt-1 gap-2">
                   <button
                     type="button"
-                    onClick={() => setErrorMessage('Sila hubungi Pentadbir Sistem untuk bantuan kata laluan.')}
+                    onClick={() => setErrorMessage('Sila hubungi Admin untuk reset kata laluan.')}
                     className="text-[11px] text-slate-500 hover:text-indigo-600 font-medium transition-colors"
                   >
                     Lupa kata laluan?
@@ -384,22 +384,7 @@ export const LoginModal: React.FC<LoginModalProps> = ({
                   </button>
                 </div>
 
-                {/* Encryption Status Tag */}
-                <div className="p-2.5 rounded-xl bg-slate-50 border border-slate-200/80 text-[10px] text-slate-500 flex items-center justify-between">
-                  <div className="flex items-center gap-1.5 font-medium">
-                    <ShieldAlert className="w-3.5 h-3.5 text-emerald-600" />
-                    <span>Enkripsi SHA-256 Terjamin</span>
-                  </div>
-                  {onOpenSupabaseModal && (
-                    <button
-                      type="button"
-                      onClick={onOpenSupabaseModal}
-                      className="text-indigo-600 hover:underline font-bold"
-                    >
-                      Firebase Sync
-                    </button>
-                  )}
-                </div>
+
 
               </form>
             ) : (
