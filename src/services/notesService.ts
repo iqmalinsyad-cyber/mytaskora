@@ -171,9 +171,9 @@ class NotesService {
             this.notes = list;
             this.notify();
           } else {
-            const notesSeeded = localStorage.getItem('NOTES_COLLECTION_SEEDED_V1') === 'true';
-            if (!notesSeeded) {
-              localStorage.setItem('NOTES_COLLECTION_SEEDED_V1', 'true');
+            const seeded = await isSystemSeeded();
+            if (!seeded) {
+              await markSystemAsSeeded();
               await this.seedNotesToFirebase();
             } else {
               this.notes = [];
@@ -198,9 +198,9 @@ class NotesService {
             this.categories = cats;
             this.notifyCategories();
           } else {
-            const catsSeeded = localStorage.getItem('NOTES_CATS_SEEDED_V1') === 'true';
-            if (!catsSeeded) {
-              localStorage.setItem('NOTES_CATS_SEEDED_V1', 'true');
+            const seeded = await isSystemSeeded();
+            if (!seeded) {
+              await markSystemAsSeeded();
               await this.seedCategoriesToFirebase();
             } else {
               this.categories = [];

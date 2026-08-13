@@ -12,7 +12,9 @@
 .animate-marquee-right {
   display: inline-block;
   white-space: nowrap;
-  animation: marqueeRight 18s linear infinite;
+  width: 100%;
+  min-width: 100%;
+  animation: marqueeRight 20s linear infinite;
 }
 
 .animate-marquee-right:hover {

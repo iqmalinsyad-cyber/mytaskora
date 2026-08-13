@@ -7,6 +7,31 @@ const AUTH_SESSION_KEY = 'WORKSPACE_AUTH_SESSION_V1';
 const USER_ACCOUNTS_KEY = 'WORKSPACE_SECURE_USER_ACCOUNTS_V1';
 const AUDIT_LOGS_KEY = 'WORKSPACE_SECURE_AUDIT_LOGS_V1';
 const SALT_KEY = 'ADUAN_SECURE_SALT_2026_AES256';
+const LAST_ACTIVITY_KEY = 'WORKSPACE_LAST_ACTIVITY_TIMESTAMP_V1';
+const AUTO_LOGOUT_TIMEOUT_MS = 2 * 60 * 60 * 1000; // 2 Hours (7,200,000 ms)
+
+export function updateLastActivityTimestamp() {
+  try {
+    localStorage.setItem(LAST_ACTIVITY_KEY, Date.now().toString());
+  } catch (e) {
+    console.error('Error updating last activity timestamp:', e);
+  }
+}
+
+export function isSessionExpiredDueToInactivity(): boolean {
+  try {
+    const saved = localStorage.getItem(LAST_ACTIVITY_KEY);
+    if (saved) {
+      const lastTime = parseInt(saved, 10);
+      if (!isNaN(lastTime)) {
+        return Date.now() - lastTime >= AUTO_LOGOUT_TIMEOUT_MS;
+      }
+    }
+  } catch (e) {
+    console.error('Error checking inactivity expiration:', e);
+  }
+  return false;
+}
 
 export interface AuditLogEntry {
   id: string;
@@ -555,6 +580,10 @@ export async function recordLogout(user?: UserProfile | null) {
 }
 export function getActiveAuthSession(): UserProfile | null {
   try {
+    if (isSessionExpiredDueToInactivity()) {
+      clearAuthSession();
+      return null;
+    }
     const saved = localStorage.getItem(AUTH_SESSION_KEY) || sessionStorage.getItem(AUTH_SESSION_KEY);
     if (saved) {
       return JSON.parse(saved);
@@ -573,6 +602,7 @@ export function setAuthSession(user: UserProfile, remember: boolean = true) {
     } else {
       sessionStorage.setItem(AUTH_SESSION_KEY, jsonStr);
     }
+    updateLastActivityTimestamp();
   } catch (e) {
     console.error('Error saving auth session:', e);
   }
@@ -582,6 +612,7 @@ export function clearAuthSession() {
   try {
     localStorage.removeItem(AUTH_SESSION_KEY);
     sessionStorage.removeItem(AUTH_SESSION_KEY);
+    localStorage.removeItem(LAST_ACTIVITY_KEY);
   } catch (e) {
     console.error('Error clearing auth session:', e);
   }

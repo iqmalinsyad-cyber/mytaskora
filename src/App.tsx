@@ -28,7 +28,7 @@ import { CalendarView } from './components/CalendarView';
 import { LaporanAduanView } from './components/LaporanAduanView';
 import { DashboardCalendarWidget } from './components/DashboardCalendarWidget';
 import { NotesView } from './components/NotesView';
-import { getActiveAuthSession, setAuthSession, clearAuthSession, recordLogout, setupUsersRealtimeSubscription, isViewAllowed } from './lib/auth';
+import { getActiveAuthSession, setAuthSession, clearAuthSession, recordLogout, setupUsersRealtimeSubscription, isViewAllowed, updateLastActivityTimestamp, isSessionExpiredDueToInactivity } from './lib/auth';
 import { BookOpen, Users, Settings, ShieldAlert, Sparkles, Building2 } from 'lucide-react';
 
 export default function App() {
@@ -58,6 +58,40 @@ export default function App() {
   });
 
   const [isLoginModalOpen, setIsLoginModalOpen] = useState(false);
+
+  // 2-Hour Inactivity Auto Logout Monitor
+  useEffect(() => {
+    if (!isAuthenticated) return;
+
+    updateLastActivityTimestamp();
+
+    let throttleTimeout: NodeJS.Timeout | null = null;
+    const handleUserActivity = () => {
+      if (!throttleTimeout) {
+        throttleTimeout = setTimeout(() => {
+          updateLastActivityTimestamp();
+          throttleTimeout = null;
+        }, 5000); // Throttle activity updates to once every 5 seconds
+      }
+    };
+
+    const events = ['mousemove', 'keydown', 'click', 'scroll', 'touchstart'];
+    events.forEach((evt) => window.addEventListener(evt, handleUserActivity, { passive: true }));
+
+    const checkInterval = setInterval(() => {
+      if (isSessionExpiredDueToInactivity()) {
+        handleLogout();
+        setRealtimeToast('🔒 Sesi anda telah ditamatkan secara automatik kerana tiada aktiviti selama 2 jam.');
+        setTimeout(() => setRealtimeToast(null), 6000);
+      }
+    }, 15000);
+
+    return () => {
+      events.forEach((evt) => window.removeEventListener(evt, handleUserActivity));
+      if (throttleTimeout) clearTimeout(throttleTimeout);
+      clearInterval(checkInterval);
+    };
+  }, [isAuthenticated]);
 
   useEffect(() => {
     try {

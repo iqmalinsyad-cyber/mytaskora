@@ -16,7 +16,9 @@ import {
   Trash2,
   Search,
   Filter,
-  RefreshCw
+  RefreshCw,
+  Calculator,
+  ArrowLeft
 } from 'lucide-react';
 import { FormatTemplate, AduanCase, UserProfile } from '../types';
 import { FORMAT_TEMPLATES } from '../data/mockData';
@@ -83,6 +85,88 @@ export const CatatanFormatView: React.FC<CatatanFormatViewProps> = ({
   const [customCategoryInput, setCustomCategoryInput] = useState('');
   const [categorySuccessMsg, setCategorySuccessMsg] = useState('');
 
+  // Calculator Popup State
+  const [isCalculatorOpen, setIsCalculatorOpen] = useState(false);
+  const [calcDisplay, setCalcDisplay] = useState('0');
+  const [calcFormula, setCalcFormula] = useState('');
+  const [calcCopyToast, setCalcCopyToast] = useState('');
+
+  const safeEvalCalc = (expr: string): string => {
+    try {
+      const cleanExpr = expr
+        .replace(/×/g, '*')
+        .replace(/÷/g, '/')
+        .replace(/%/g, '/100')
+        .replace(/[^0-9+\-*/.]/g, '');
+      if (!cleanExpr) return '0';
+      // eslint-disable-next-line no-new-func
+      const result = Function(`"use strict"; return (${cleanExpr})`)();
+      if (isNaN(result) || !isFinite(result)) return 'Ralat';
+      return Number.isInteger(result) ? result.toString() : parseFloat(result.toFixed(6)).toString();
+    } catch (err) {
+      return 'Ralat';
+    }
+  };
+
+  const handleCalcClick = (val: string) => {
+    if (val === 'C') {
+      setCalcDisplay('0');
+      setCalcFormula('');
+      return;
+    }
+
+    if (val === 'DEL') {
+      if (calcDisplay.length <= 1 || calcDisplay === 'Ralat') {
+        setCalcDisplay('0');
+      } else {
+        setCalcDisplay(calcDisplay.slice(0, -1).trim());
+      }
+      return;
+    }
+
+    if (val === '=') {
+      if (calcDisplay === 'Ralat') return;
+      const res = safeEvalCalc(calcDisplay);
+      setCalcFormula(`${calcDisplay} =`);
+      setCalcDisplay(res);
+      return;
+    }
+
+    if (['+', '-', '×', '÷'].includes(val)) {
+      if (calcDisplay === 'Ralat') {
+        setCalcDisplay(`0 ${val} `);
+        return;
+      }
+      const lastChar = calcDisplay.trim().slice(-1);
+      if (['+', '-', '×', '÷'].includes(lastChar)) {
+        setCalcDisplay(calcDisplay.trim().slice(0, -1) + ` ${val} `);
+      } else {
+        setCalcDisplay(`${calcDisplay} ${val} `);
+      }
+      return;
+    }
+
+    if (calcDisplay === '0' && val !== '.') {
+      setCalcDisplay(val);
+    } else if (calcDisplay === 'Ralat') {
+      setCalcDisplay(val);
+    } else {
+      setCalcDisplay(calcDisplay + val);
+    }
+  };
+
+  const handleCopyCalcResult = () => {
+    navigator.clipboard.writeText(calcDisplay);
+    setCalcCopyToast('Hasil disalin ke clipboard!');
+    setTimeout(() => setCalcCopyToast(''), 2000);
+  };
+
+  const handleInsertCalcToContent = () => {
+    setContent((prev) => (prev ? `${prev}\n\n[Hasil Kiraan: ${calcDisplay}]` : `[Hasil Kiraan: ${calcDisplay}]`));
+    setCalcCopyToast('Dimasukkan ke dalam catatan!');
+    setTimeout(() => setCalcCopyToast(''), 2000);
+  };
+
   // Save formats & categories to localStorage
   useEffect(() => {
     try {
@@ -145,8 +229,7 @@ export const CatatanFormatView: React.FC<CatatanFormatViewProps> = ({
   // Copy Catatan from Main Textarea Editor
   const handleCopyMainContent = () => {
     if (!content.trim()) return;
-    const fullTextToCopy = title.trim() ? `[${title}]\n\n${content}` : content;
-    navigator.clipboard.writeText(fullTextToCopy);
+    navigator.clipboard.writeText(content);
     setCopySuccess(true);
     setTimeout(() => setCopySuccess(false), 2500);
   };
@@ -492,13 +575,22 @@ export const CatatanFormatView: React.FC<CatatanFormatViewProps> = ({
             />
           </div>
 
-          {/* Action Row: Copy Catatan Button */}
-          <div className="flex items-center justify-end pt-2">
+          {/* Action Row: Kalkulator & Copy Catatan Buttons */}
+          <div className="flex items-center justify-end gap-2.5 pt-2">
+            <button
+              type="button"
+              onClick={() => setIsCalculatorOpen(true)}
+              className="px-4 py-2.5 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold transition-all shadow-xs flex items-center justify-center gap-2 cursor-pointer"
+              title="Buka Kalkulator"
+            >
+              <Calculator className="w-4 h-4 text-white" />
+              <span>Kalkulator</span>
+            </button>
             <button
               type="button"
               onClick={handleCopyMainContent}
               disabled={!content.trim()}
-              className="px-5 py-2.5 rounded-lg bg-indigo-600 text-white text-xs font-bold hover:bg-indigo-700 transition-all shadow-xs flex items-center justify-center gap-2 disabled:opacity-50"
+              className="px-5 py-2.5 rounded-lg bg-indigo-600 text-white text-xs font-bold hover:bg-indigo-700 transition-all shadow-xs flex items-center justify-center gap-2 disabled:opacity-50 cursor-pointer"
             >
               <Copy className="w-4 h-4 text-white" />
               <span>{copySuccess ? 'Disalin!' : 'Copy Catatan'}</span>
@@ -716,6 +808,190 @@ export const CatatanFormatView: React.FC<CatatanFormatViewProps> = ({
               >
                 <Trash2 className="w-3.5 h-3.5" />
                 <span>Ya, Padam</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal Popup Kalkulator */}
+      {isCalculatorOpen && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-3 bg-black/60 backdrop-blur-xs animate-in fade-in zoom-in-95 duration-150">
+          <div className="bg-slate-900 rounded-3xl w-full max-w-sm overflow-hidden shadow-2xl border border-slate-800 p-5 space-y-4 relative text-white my-auto">
+            {/* Header */}
+            <div className="flex items-center justify-between border-b border-slate-800 pb-3">
+              <div className="flex items-center gap-2.5">
+                <div className="w-8 h-8 rounded-xl bg-emerald-500 text-slate-950 flex items-center justify-center font-black">
+                  <Calculator className="w-4 h-4" />
+                </div>
+                <div>
+                  <h3 className="text-sm font-extrabold text-white tracking-tight">Kalkulator Catatan</h3>
+                  <p className="text-[10px] text-slate-400 font-medium">Kiraan pantas semasa mencatat</p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setIsCalculatorOpen(false)}
+                className="p-1.5 rounded-full bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-white transition-colors cursor-pointer"
+                title="Tutup Kalkulator"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            {/* Display Screen */}
+            <div className="bg-slate-950/80 rounded-2xl p-4 border border-slate-800/80 space-y-1 text-right min-h-[80px] flex flex-col justify-end">
+              <div className="text-[11px] font-mono text-emerald-400/80 h-4 overflow-hidden truncate">
+                {calcFormula || '\u00A0'}
+              </div>
+              <div className="text-2xl font-black font-mono tracking-tight text-white overflow-x-auto whitespace-nowrap scrollbar-none">
+                {calcDisplay}
+              </div>
+            </div>
+
+            {/* Toast Feedback */}
+            {calcCopyToast && (
+              <div className="text-[11px] font-bold text-center text-emerald-400 bg-emerald-950/60 border border-emerald-800/60 py-1.5 px-3 rounded-xl animate-fade-in">
+                ✓ {calcCopyToast}
+              </div>
+            )}
+
+            {/* Keypad Buttons Grid */}
+            <div className="grid grid-cols-4 gap-2 text-sm font-extrabold font-mono">
+              {/* Row 1 */}
+              <button
+                type="button"
+                onClick={() => handleCalcClick('C')}
+                className="p-3 rounded-xl bg-rose-500/20 text-rose-400 hover:bg-rose-500/30 transition-all cursor-pointer"
+              >
+                C
+              </button>
+              <button
+                type="button"
+                onClick={() => handleCalcClick('DEL')}
+                className="p-3 rounded-xl bg-slate-800 text-slate-300 hover:bg-slate-700 transition-all cursor-pointer flex items-center justify-center"
+                title="Padam 1 Aksara"
+              >
+                ⌫
+              </button>
+              <button
+                type="button"
+                onClick={() => handleCalcClick('%')}
+                className="p-3 rounded-xl bg-slate-800 text-emerald-400 hover:bg-slate-700 transition-all cursor-pointer"
+              >
+                %
+              </button>
+              <button
+                type="button"
+                onClick={() => handleCalcClick('÷')}
+                className="p-3 rounded-xl bg-emerald-500/20 text-emerald-400 hover:bg-emerald-500/30 transition-all cursor-pointer"
+              >
+                ÷
+              </button>
+
+              {/* Row 2 */}
+              {['7', '8', '9'].map((n) => (
+                <button
+                  key={n}
+                  type="button"
+                  onClick={() => handleCalcClick(n)}
+                  className="p-3 rounded-xl bg-slate-800/80 text-white hover:bg-slate-700 transition-all cursor-pointer"
+                >
+                  {n}
+                </button>
+              ))}
+              <button
+                type="button"
+                onClick={() => handleCalcClick('×')}
+                className="p-3 rounded-xl bg-emerald-500/20 text-emerald-400 hover:bg-emerald-500/30 transition-all cursor-pointer"
+              >
+                ×
+              </button>
+
+              {/* Row 3 */}
+              {['4', '5', '6'].map((n) => (
+                <button
+                  key={n}
+                  type="button"
+                  onClick={() => handleCalcClick(n)}
+                  className="p-3 rounded-xl bg-slate-800/80 text-white hover:bg-slate-700 transition-all cursor-pointer"
+                >
+                  {n}
+                </button>
+              ))}
+              <button
+                type="button"
+                onClick={() => handleCalcClick('-')}
+                className="p-3 rounded-xl bg-emerald-500/20 text-emerald-400 hover:bg-emerald-500/30 transition-all cursor-pointer"
+              >
+                -
+              </button>
+
+              {/* Row 4 */}
+              {['1', '2', '3'].map((n) => (
+                <button
+                  key={n}
+                  type="button"
+                  onClick={() => handleCalcClick(n)}
+                  className="p-3 rounded-xl bg-slate-800/80 text-white hover:bg-slate-700 transition-all cursor-pointer"
+                >
+                  {n}
+                </button>
+              ))}
+              <button
+                type="button"
+                onClick={() => handleCalcClick('+')}
+                className="p-3 rounded-xl bg-emerald-500/20 text-emerald-400 hover:bg-emerald-500/30 transition-all cursor-pointer"
+              >
+                +
+              </button>
+
+              {/* Row 5 */}
+              <button
+                type="button"
+                onClick={() => handleCalcClick('0')}
+                className="p-3 rounded-xl bg-slate-800/80 text-white hover:bg-slate-700 transition-all cursor-pointer"
+              >
+                0
+              </button>
+              <button
+                type="button"
+                onClick={() => handleCalcClick('.')}
+                className="p-3 rounded-xl bg-slate-800/80 text-white hover:bg-slate-700 transition-all cursor-pointer"
+              >
+                .
+              </button>
+              <button
+                type="button"
+                onClick={() => handleCalcClick('=')}
+                className="col-span-2 p-3 rounded-xl bg-emerald-500 text-slate-950 hover:bg-emerald-400 font-black transition-all cursor-pointer"
+              >
+                =
+              </button>
+            </div>
+
+            {/* Extra Actions Footer */}
+            <div className="pt-2 border-t border-slate-800 flex items-center justify-between gap-2">
+              <button
+                type="button"
+                onClick={handleInsertCalcToContent}
+                className="flex-1 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-slate-950 text-xs font-black transition-all cursor-pointer"
+              >
+                Masuk Dalam Catatan
+              </button>
+              <button
+                type="button"
+                onClick={handleCopyCalcResult}
+                className="px-3.5 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-bold transition-all cursor-pointer"
+              >
+                Salin
+              </button>
+              <button
+                type="button"
+                onClick={() => setIsCalculatorOpen(false)}
+                className="px-3.5 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-white text-xs font-bold transition-all cursor-pointer"
+              >
+                Tutup
               </button>
             </div>
           </div>
