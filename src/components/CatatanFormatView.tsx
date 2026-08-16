@@ -226,6 +226,16 @@ export const CatatanFormatView: React.FC<CatatanFormatViewProps> = ({
     setTimeout(() => setCopiedId(null), 2000);
   };
 
+  // Text Case Transformation Helpers
+  const toSentenceCase = (str: string): string => {
+    if (!str) return '';
+    return str
+      .toLowerCase()
+      .replace(/(^\s*|[.!?\n]\s*|[-•*\[]\s*|\d+\.\s*)([a-z\u00C0-\u017F])/g, (match, prefix, char) => {
+        return prefix + char.toUpperCase();
+      });
+  };
+
   // Copy Catatan from Main Textarea Editor
   const handleCopyMainContent = () => {
     if (!content.trim()) return;
@@ -530,7 +540,7 @@ export const CatatanFormatView: React.FC<CatatanFormatViewProps> = ({
           <div className="flex items-center gap-2">
             <BookOpen className="w-5 h-5 text-indigo-600" />
             <h4 className="text-sm font-bold text-slate-800">
-              Penyedia Catatan & Format Minit Aduan
+              Pratonton Catatan & Format Sokongan
             </h4>
           </div>
           {copySuccess && (
@@ -558,13 +568,45 @@ export const CatatanFormatView: React.FC<CatatanFormatViewProps> = ({
 
           {/* Text Area Content */}
           <div>
-            <div className="flex items-center justify-between mb-1">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-1.5">
               <label className="block text-xs font-bold text-slate-700">
-                Kandungan Format Catatan *
+                Kandungan Format Catatan <span className="text-rose-500">*</span>
               </label>
-              <span className="text-[10px] text-slate-400 font-medium">
-                Sila kemaskini medan bertanda [ ] mengikut maklumat siasatan sebenar.
-              </span>
+              
+              {/* Text Case Formatting Controls */}
+              <div className="flex items-center gap-1.5 flex-wrap">
+                <span className="text-[11px] font-bold text-slate-400 mr-1 hidden sm:inline">Format Huruf:</span>
+                <button
+                  type="button"
+                  onClick={() => setContent((prev) => prev.toUpperCase())}
+                  disabled={!content}
+                  className="px-2.5 py-1 rounded-lg bg-slate-100 hover:bg-indigo-50 hover:text-indigo-700 hover:border-indigo-200 border border-slate-200 text-[11px] font-extrabold text-slate-700 transition-all flex items-center gap-1 cursor-pointer disabled:opacity-40"
+                  title="CAPSLOCK (Tukar semua huruf kepada huruf besar)"
+                >
+                  <span className="font-mono font-black text-xs text-indigo-600">AA</span>
+                  <span>CAPSLOCK</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setContent((prev) => prev.toLowerCase())}
+                  disabled={!content}
+                  className="px-2.5 py-1 rounded-lg bg-slate-100 hover:bg-indigo-50 hover:text-indigo-700 hover:border-indigo-200 border border-slate-200 text-[11px] font-semibold text-slate-700 transition-all flex items-center gap-1 cursor-pointer disabled:opacity-40"
+                  title="Huruf kecil (Tukar semua huruf kepada huruf kecil)"
+                >
+                  <span className="font-mono font-black text-xs text-indigo-600">aa</span>
+                  <span>Huruf Kecil</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setContent((prev) => toSentenceCase(prev))}
+                  disabled={!content}
+                  className="px-2.5 py-1 rounded-lg bg-slate-100 hover:bg-indigo-50 hover:text-indigo-700 hover:border-indigo-200 border border-slate-200 text-[11px] font-semibold text-slate-700 transition-all flex items-center gap-1 cursor-pointer disabled:opacity-40"
+                  title="Huruf besar di hadapan setiap ayat (Sentence case)"
+                >
+                  <span className="font-mono font-black text-xs text-indigo-600">Aa</span>
+                  <span>Huruf Besar Awal Ayat</span>
+                </button>
+              </div>
             </div>
             <textarea
               rows={8}
@@ -573,6 +615,10 @@ export const CatatanFormatView: React.FC<CatatanFormatViewProps> = ({
               placeholder="Pilih format di atas atau tulis catatan rasmi..."
               className="w-full p-3.5 rounded-xl bg-slate-50 border border-slate-200 font-mono text-xs text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 leading-relaxed"
             />
+            <div className="flex items-center justify-between mt-1 text-[10px] text-slate-400">
+              <span>Sila kemaskini medan bertanda [ ] mengikut maklumat siasatan sebenar.</span>
+              <span>{content.length} aksara</span>
+            </div>
           </div>
 
           {/* Action Row: Kalkulator & Copy Catatan Buttons */}
@@ -735,13 +781,42 @@ export const CatatanFormatView: React.FC<CatatanFormatViewProps> = ({
 
               {/* Kandungan Format Ayat / Template */}
               <div>
-                <div className="flex items-center justify-between mb-1">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1.5 mb-1.5">
                   <label className="block font-bold text-slate-800">
                     Kandungan Format Ayat / Templat *
                   </label>
-                  <span className="text-[10px] text-slate-400">
-                    Gunakan tanda [ ] untuk pembolehubah
-                  </span>
+                  <div className="flex items-center gap-1 flex-wrap">
+                    <button
+                      type="button"
+                      onClick={() => setNewFormatContent((prev) => prev.toUpperCase())}
+                      disabled={!newFormatContent}
+                      className="px-2 py-0.5 rounded-md bg-slate-100 hover:bg-indigo-50 hover:text-indigo-700 border border-slate-200 text-[10px] font-extrabold text-slate-700 transition-all flex items-center gap-1 cursor-pointer disabled:opacity-40"
+                      title="CAPSLOCK semua huruf"
+                    >
+                      <span className="font-mono font-black text-indigo-600">AA</span>
+                      <span>CAPSLOCK</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setNewFormatContent((prev) => prev.toLowerCase())}
+                      disabled={!newFormatContent}
+                      className="px-2 py-0.5 rounded-md bg-slate-100 hover:bg-indigo-50 hover:text-indigo-700 border border-slate-200 text-[10px] font-semibold text-slate-700 transition-all flex items-center gap-1 cursor-pointer disabled:opacity-40"
+                      title="Semua huruf kecil"
+                    >
+                      <span className="font-mono font-black text-indigo-600">aa</span>
+                      <span>Huruf Kecil</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setNewFormatContent((prev) => toSentenceCase(prev))}
+                      disabled={!newFormatContent}
+                      className="px-2 py-0.5 rounded-md bg-slate-100 hover:bg-indigo-50 hover:text-indigo-700 border border-slate-200 text-[10px] font-semibold text-slate-700 transition-all flex items-center gap-1 cursor-pointer disabled:opacity-40"
+                      title="Huruf besar di hadapan setiap ayat"
+                    >
+                      <span className="font-mono font-black text-indigo-600">Aa</span>
+                      <span>Huruf Besar Awal Ayat</span>
+                    </button>
+                  </div>
                 </div>
                 <textarea
                   rows={6}
