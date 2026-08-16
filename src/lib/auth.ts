@@ -4,11 +4,12 @@ import { collection, onSnapshot, doc, setDoc, deleteDoc, getDocs, query, orderBy
 import { CURRENT_USER } from '../data/mockData';
 
 const AUTH_SESSION_KEY = 'WORKSPACE_AUTH_SESSION_V1';
+const SESSION_TOKEN_KEY = 'WORKSPACE_ACTIVE_SESSION_TOKEN_V1';
 const USER_ACCOUNTS_KEY = 'WORKSPACE_SECURE_USER_ACCOUNTS_V1';
 const AUDIT_LOGS_KEY = 'WORKSPACE_SECURE_AUDIT_LOGS_V1';
 const SALT_KEY = 'ADUAN_SECURE_SALT_2026_AES256';
 const LAST_ACTIVITY_KEY = 'WORKSPACE_LAST_ACTIVITY_TIMESTAMP_V1';
-const AUTO_LOGOUT_TIMEOUT_MS = 2 * 60 * 60 * 1000; // 2 Hours (7,200,000 ms)
+const AUTO_LOGOUT_TIMEOUT_MS = 1 * 60 * 60 * 1000; // 1 Hour (3,600,000 ms) - Auto Logout after 1 hour inactivity
 
 export function updateLastActivityTimestamp() {
   try {
@@ -578,16 +579,42 @@ export async function recordLogout(user?: UserProfile | null) {
   }
   clearAuthSession();
 }
+export function generateSessionToken(): string {
+  try {
+    const array = new Uint8Array(16);
+    crypto.getRandomValues(array);
+    const hex = Array.from(array, (b) => b.toString(16).padStart(2, '0')).join('');
+    return `sess_tok_${Date.now()}_${hex}`;
+  } catch {
+    return `sess_tok_${Date.now()}_${Math.random().toString(36).substring(2, 12)}`;
+  }
+}
+
 export function getActiveAuthSession(): UserProfile | null {
   try {
+    // 1. Check 1-Hour Inactivity Expiration
     if (isSessionExpiredDueToInactivity()) {
       clearAuthSession();
       return null;
     }
+
+    // 2. Retrieve Saved Session Data
     const saved = localStorage.getItem(AUTH_SESSION_KEY) || sessionStorage.getItem(AUTH_SESSION_KEY);
-    if (saved) {
-      return JSON.parse(saved);
+    if (!saved) {
+      return null;
     }
+
+    const savedUser: UserProfile = JSON.parse(saved);
+
+    // 3. Verify Active Browser Session Token
+    // sessionStorage is automatically wiped when browser or tab is closed.
+    const activeToken = sessionStorage.getItem(SESSION_TOKEN_KEY);
+    if (!activeToken || (savedUser.sessionToken && activeToken !== savedUser.sessionToken)) {
+      clearAuthSession();
+      return null;
+    }
+
+    return savedUser;
   } catch (e) {
     console.error('Error reading auth session:', e);
   }
@@ -596,7 +623,19 @@ export function getActiveAuthSession(): UserProfile | null {
 
 export function setAuthSession(user: UserProfile, remember: boolean = true) {
   try {
-    const jsonStr = JSON.stringify(user);
+    // Obtain or generate a session token for the current browser tab/window
+    let token = sessionStorage.getItem(SESSION_TOKEN_KEY);
+    if (!token) {
+      token = user.sessionToken || generateSessionToken();
+      sessionStorage.setItem(SESSION_TOKEN_KEY, token);
+    }
+
+    const updatedUser: UserProfile = {
+      ...user,
+      sessionToken: token,
+    };
+
+    const jsonStr = JSON.stringify(updatedUser);
     if (remember) {
       localStorage.setItem(AUTH_SESSION_KEY, jsonStr);
     } else {
@@ -612,6 +651,7 @@ export function clearAuthSession() {
   try {
     localStorage.removeItem(AUTH_SESSION_KEY);
     sessionStorage.removeItem(AUTH_SESSION_KEY);
+    sessionStorage.removeItem(SESSION_TOKEN_KEY);
     localStorage.removeItem(LAST_ACTIVITY_KEY);
   } catch (e) {
     console.error('Error clearing auth session:', e);

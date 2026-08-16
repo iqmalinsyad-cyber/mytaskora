@@ -112,6 +112,7 @@ export interface UserProfile {
   phone?: string;
   department?: string;
   allowedViews?: string[];
+  sessionToken?: string;
 }
 
 export interface LaporanAduanItem {

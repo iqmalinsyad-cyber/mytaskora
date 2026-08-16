@@ -59,7 +59,7 @@ export default function App() {
 
   const [isLoginModalOpen, setIsLoginModalOpen] = useState(false);
 
-  // 2-Hour Inactivity Auto Logout Monitor
+  // 1-Hour Inactivity Auto Logout Monitor
   useEffect(() => {
     if (!isAuthenticated) return;
 
@@ -81,7 +81,7 @@ export default function App() {
     const checkInterval = setInterval(() => {
       if (isSessionExpiredDueToInactivity()) {
         handleLogout();
-        setRealtimeToast('🔒 Sesi anda telah ditamatkan secara automatik kerana tiada aktiviti selama 2 jam.');
+        setRealtimeToast('🔒 Sesi anda telah ditamatkan secara automatik kerana tiada aktiviti selama 1 jam.');
         setTimeout(() => setRealtimeToast(null), 6000);
       }
     }, 15000);

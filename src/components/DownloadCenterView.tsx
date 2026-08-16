@@ -20,7 +20,10 @@ import {
   RefreshCw,
   FolderDown,
   Layers,
-  Info
+  Info,
+  Globe,
+  Folder,
+  Link as LinkIcon
 } from 'lucide-react';
 import { UserProfile } from '../types';
 import { downloadService, DownloadFileItem } from '../services/downloadService';
@@ -133,21 +136,29 @@ export const DownloadCenterView: React.FC<DownloadCenterViewProps> = ({ currentU
       return;
     }
 
-    if (editingItem) {
-      await downloadService.updateFile(editingItem.id, {
-        ...formData,
-        updatedBy: currentUser?.name || 'Pentadbir Sistem',
-      });
-      showToast('✅ Fail berjaya dikemaskini dan disinkronkan ke Firebase!');
-    } else {
-      await downloadService.addFile({
-        ...formData,
-        updatedBy: currentUser?.name || 'Pentadbir Sistem',
-      });
-      showToast('🎉 Fail muat turun baharu berjaya ditambah dan disinkronkan ke Firebase!');
-    }
-
+    // Close modal immediately and clear editing state
     setIsModalOpen(false);
+
+    try {
+      if (editingItem) {
+        await downloadService.updateFile(editingItem.id, {
+          ...formData,
+          updatedBy: currentUser?.name || 'Pentadbir Sistem',
+        });
+        showToast('✅ Fail berjaya dikemaskini dan disinkronkan ke Firebase!');
+      } else {
+        await downloadService.addFile({
+          ...formData,
+          updatedBy: currentUser?.name || 'Pentadbir Sistem',
+        });
+        showToast('🎉 Fail muat turun baharu berjaya ditambah dan disinkronkan ke Firebase!');
+      }
+    } catch (err) {
+      console.error('Error saving file:', err);
+      showToast('❌ Ralat semasa menyimpan fail ke Firebase!');
+    } finally {
+      setEditingItem(null);
+    }
   };
 
   const handleDeleteFile = async (id: string, title: string) => {
@@ -222,6 +233,9 @@ export const DownloadCenterView: React.FC<DownloadCenterViewProps> = ({ currentU
     if (t === 'XLSX' || t === 'XLS') return 'bg-emerald-600 text-white';
     if (t === 'DOCX' || t === 'DOC') return 'bg-blue-600 text-white';
     if (t === 'ZIP' || t === 'RAR') return 'bg-amber-600 text-white';
+    if (t === 'LINK') return 'bg-cyan-600 text-white';
+    if (t === 'FOLDER') return 'bg-purple-600 text-white';
+    if (t === 'HTML' || t === 'HTM') return 'bg-teal-600 text-white';
     return 'bg-indigo-600 text-white';
   };
 
@@ -231,6 +245,9 @@ export const DownloadCenterView: React.FC<DownloadCenterViewProps> = ({ currentU
     if (t === 'XLSX' || t === 'XLS') return FileSpreadsheet;
     if (t === 'ZIP' || t === 'RAR') return Archive;
     if (t === 'PNG' || t === 'JPG' || t === 'JPEG') return ImageIcon;
+    if (t === 'LINK') return ExternalLink;
+    if (t === 'FOLDER') return FolderDown;
+    if (t === 'HTML' || t === 'HTM') return Globe;
     return File;
   };
 
@@ -574,8 +591,19 @@ export const DownloadCenterView: React.FC<DownloadCenterViewProps> = ({ currentU
                   <div className="flex gap-2">
                     <select
                       value={formData.fileType}
-                      onChange={(e) => setFormData({ ...formData, fileType: e.target.value })}
-                      className="w-1/2 px-3 py-2 rounded-xl border border-slate-200 text-xs font-medium focus:ring-2 focus:ring-indigo-500 focus:outline-hidden"
+                      onChange={(e) => {
+                        const val = e.target.value;
+                        let sizeVal = formData.fileSize;
+                        if (val === 'Link' && (formData.fileSize === '1.5 MB' || !formData.fileSize)) {
+                          sizeVal = 'Pautan Web';
+                        } else if (val === 'Folder' && (formData.fileSize === '1.5 MB' || !formData.fileSize)) {
+                          sizeVal = 'Folder Google Drive';
+                        } else if (val === 'HTML' && (formData.fileSize === '1.5 MB' || !formData.fileSize)) {
+                          sizeVal = 'Halaman Web';
+                        }
+                        setFormData({ ...formData, fileType: val, fileSize: sizeVal });
+                      }}
+                      className="w-1/2 px-3 py-2 rounded-xl border border-slate-200 text-xs font-medium focus:ring-2 focus:ring-indigo-500 focus:outline-hidden bg-white"
                     >
                       <option value="PDF">PDF</option>
                       <option value="DOCX">DOCX</option>
@@ -583,6 +611,9 @@ export const DownloadCenterView: React.FC<DownloadCenterViewProps> = ({ currentU
                       <option value="ZIP">ZIP</option>
                       <option value="PNG">PNG</option>
                       <option value="JPG">JPG</option>
+                      <option value="Link">Link</option>
+                      <option value="Folder">Folder</option>
+                      <option value="HTML">HTML</option>
                     </select>
                     <input
                       type="text"
