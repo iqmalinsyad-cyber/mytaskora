@@ -1,10 +1,10 @@
-import { AduanCase, AduanNote, AduanStatus, Workspace, FilterOptions, ActivityLog } from '../types';
+import { AduanCase, AduanNote, AduanStatus, Workspace, FilterOptions, ActivityLog, SumberAduan, TindakanAduan, SyorBantuan } from '../types';
 import { INITIAL_ADUAN_CASES, INITIAL_WORKSPACES } from '../data/mockData';
 import { db, isSystemSeeded, markSystemAsSeeded } from '../lib/firebase';
-import { collection, onSnapshot, doc, setDoc, deleteDoc, getDocs, writeBatch } from 'firebase/firestore';
+import { collection, onSnapshot, doc, setDoc, deleteDoc, getDocs } from 'firebase/firestore';
 import { syncAllUsersToSupabase } from '../lib/auth';
 
-const ADUAN_STORAGE_KEY = 'aduan_workspace_cases_v2';
+const ADUAN_STORAGE_KEY = 'aduan_workspace_cases_v3';
 const WORKSPACE_STORAGE_KEY = 'aduan_workspace_list_v2';
 const LOGS_STORAGE_KEY = 'aduan_workspace_logs_v2';
 
@@ -12,6 +12,53 @@ type RealtimeListener = (cases: AduanCase[]) => void;
 type ActivityListener = (logs: ActivityLog[]) => void;
 export type DiagnosticLog = { id: string; timestamp: string; level: 'info' | 'success' | 'warn' | 'error'; message: string };
 type DiagnosticListener = (logs: DiagnosticLog[]) => void;
+
+export function sanitizeAduanCase(raw: any): AduanCase {
+  const normalizedStatus: AduanStatus = 
+    raw.status === 'Belum Disahkan' ? 'Belum Selesai' :
+    raw.status === 'Perlu Maklumat' ? 'Perlu Maklumat (KIV)' :
+    (raw.status || 'Belum Selesai');
+
+  const validSumber: SumberAduan[] = ['CMU', 'Aduan Awam', 'Parlimen', 'Adun', 'HQ', 'MAIS', 'JAIS'];
+  const normalizedSumber: SumberAduan = validSumber.includes(raw.sumberAduan) ? raw.sumberAduan : 'Aduan Awam';
+
+  const validTindakan: TindakanAduan[] = ['Telah Diproses', 'KIV', 'Belum Di Proses'];
+  const normalizedTindakan: TindakanAduan = validTindakan.includes(raw.tindakan) ? raw.tindakan : 'Belum Di Proses';
+
+  const validSyor: SyorBantuan[] = ['Ada', 'Tiada'];
+  const normalizedSyor: SyorBantuan = validSyor.includes(raw.syorBantuan) ? raw.syorBantuan : 'Tiada';
+
+  return {
+    id: raw.id || `adn-${Date.now()}`,
+    noRujukan: raw.noRujukan || 'ADV-2026-001',
+    namaPengadu: raw.namaPengadu || raw.tajuk || 'Pengadu',
+    telefonPengadu: raw.telefonPengadu || raw.phone || '012-3456789',
+    alamat: raw.alamat || raw.lokasi || 'Tiada Maklumat Alamat',
+    sumberAduan: normalizedSumber,
+    catatanKes: raw.catatanKes ?? raw.penerangan ?? '',
+    status: normalizedStatus,
+    gambarSiasatan: Array.isArray(raw.gambarSiasatan) ? raw.gambarSiasatan : [],
+    tindakan: normalizedTindakan,
+    syorBantuan: normalizedSyor,
+    workspaceId: raw.workspaceId || 'ws-integriti',
+    tajuk: raw.tajuk || raw.namaPengadu || 'Kes Aduan',
+    penerangan: raw.penerangan || raw.catatanKes || '',
+    kategori: raw.kategori || 'Infrastruktur & Bangunan',
+    prioriti: raw.prioriti || 'Sederhana',
+    emailPengadu: raw.emailPengadu || 'pengadu@awam.gov.my',
+    lokasi: raw.lokasi || raw.alamat || '',
+    assignee: raw.assignee || 'Sarah Adams',
+    assigneeRole: raw.assigneeRole || 'Pegawai Aduan',
+    assigneeAvatar: raw.assigneeAvatar || 'https://api.dicebear.com/7.x/personas/svg?seed=Aisha&clothingColor=3b82f6&hair=hijab',
+    tarikhAduan: raw.tarikhAduan || new Date().toISOString(),
+    sasaranSLA: raw.sasaranSLA,
+    tarikhSelesai: raw.tarikhSelesai,
+    csatRating: raw.csatRating,
+    catatan: Array.isArray(raw.catatan) ? raw.catatan : [],
+    tags: Array.isArray(raw.tags) ? raw.tags : [],
+    updatedAt: raw.updatedAt || new Date().toISOString(),
+  };
+}
 
 class AduanService {
   private cases: AduanCase[] = [];
@@ -30,11 +77,12 @@ class AduanService {
 
   private initData() {
     try {
-      const savedCases = localStorage.getItem(ADUAN_STORAGE_KEY);
+      const savedCases = localStorage.getItem(ADUAN_STORAGE_KEY) || localStorage.getItem('aduan_workspace_cases_v2');
       if (savedCases) {
-        this.cases = JSON.parse(savedCases);
+        const parsed = JSON.parse(savedCases);
+        this.cases = Array.isArray(parsed) ? parsed.map(sanitizeAduanCase) : INITIAL_ADUAN_CASES;
       } else {
-        this.cases = INITIAL_ADUAN_CASES;
+        this.cases = INITIAL_ADUAN_CASES.map(sanitizeAduanCase);
         this.saveCasesToLocal();
       }
 
@@ -74,7 +122,7 @@ class AduanService {
       }
     } catch (e) {
       console.error('Error initializing data in AduanService:', e);
-      this.cases = INITIAL_ADUAN_CASES;
+      this.cases = INITIAL_ADUAN_CASES.map(sanitizeAduanCase);
       this.workspaces = INITIAL_WORKSPACES;
     }
   }
@@ -192,8 +240,8 @@ class AduanService {
           if (!snapshot.empty) {
             const loadedCases: AduanCase[] = [];
             snapshot.forEach((docSnap) => {
-              const data = docSnap.data() as AduanCase;
-              loadedCases.push(data);
+              const data = docSnap.data();
+              loadedCases.push(sanitizeAduanCase(data));
             });
 
             // Maintain order by updatedAt descending
@@ -309,7 +357,7 @@ class AduanService {
       const snap = await getDocs(collection(db, 'aduan'));
       if (!snap.empty) {
         const loadedCases: AduanCase[] = [];
-        snap.forEach(d => loadedCases.push(d.data() as AduanCase));
+        snap.forEach(d => loadedCases.push(sanitizeAduanCase(d.data())));
         loadedCases.sort((a, b) => new Date(b.updatedAt || 0).getTime() - new Date(a.updatedAt || 0).getTime());
         this.cases = loadedCases;
         this.notify();
@@ -332,10 +380,24 @@ class AduanService {
 
     if (filters.status && filters.status !== 'all') {
       if (filters.status === 'Belum Selesai') {
-        result = result.filter(c => c.status !== 'Selesai' && c.status !== 'Ditolak');
+        result = result.filter(c => c.status === 'Belum Selesai' || c.status === 'Belum Disahkan');
+      } else if (filters.status === 'Perlu Maklumat (KIV)') {
+        result = result.filter(c => c.status === 'Perlu Maklumat (KIV)' || c.status === 'Perlu Maklumat');
       } else {
         result = result.filter(c => c.status === filters.status);
       }
+    }
+
+    if (filters.sumberAduan && filters.sumberAduan !== 'all') {
+      result = result.filter(c => c.sumberAduan === filters.sumberAduan);
+    }
+
+    if (filters.tindakan && filters.tindakan !== 'all') {
+      result = result.filter(c => c.tindakan === filters.tindakan);
+    }
+
+    if (filters.syorBantuan && filters.syorBantuan !== 'all') {
+      result = result.filter(c => c.syorBantuan === filters.syorBantuan);
     }
 
     if (filters.priority && filters.priority !== 'all') {
@@ -349,17 +411,18 @@ class AduanService {
     if (filters.searchQuery) {
       const q = filters.searchQuery.toLowerCase().trim();
       result = result.filter(c => 
-        c.noRujukan.toLowerCase().includes(q) ||
-        c.tajuk.toLowerCase().includes(q) ||
-        c.namaPengadu.toLowerCase().includes(q) ||
-        c.penerangan.toLowerCase().includes(q) ||
-        c.assignee.toLowerCase().includes(q)
+        (c.noRujukan && c.noRujukan.toLowerCase().includes(q)) ||
+        (c.namaPengadu && c.namaPengadu.toLowerCase().includes(q)) ||
+        (c.telefonPengadu && c.telefonPengadu.toLowerCase().includes(q)) ||
+        (c.alamat && c.alamat.toLowerCase().includes(q)) ||
+        (c.catatanKes && c.catatanKes.toLowerCase().includes(q)) ||
+        (c.sumberAduan && c.sumberAduan.toLowerCase().includes(q)) ||
+        (c.tajuk && c.tajuk.toLowerCase().includes(q))
       );
     }
 
     if (filters.onlyOverdue) {
-      const now = new Date();
-      result = result.filter(c => c.status !== 'Selesai' && c.status !== 'Ditolak' && new Date(c.sasaranSLA) < now);
+      result = result.filter(c => c.status !== 'Selesai' && c.status !== 'Ditolak');
     }
 
     return result;
@@ -377,18 +440,20 @@ class AduanService {
     return this.activityLogs;
   }
 
-  public async addCase(newCase: Omit<AduanCase, 'id' | 'noRujukan' | 'catatan' | 'updatedAt'>): Promise<AduanCase> {
+  public async addCase(newCase: Omit<AduanCase, 'id' | 'catatan' | 'updatedAt'> & { id?: string; noRujukan?: string }): Promise<AduanCase> {
     const count = this.cases.length + 101;
-    const created: AduanCase = {
+    const generatedNoRujukan = newCase.noRujukan?.trim() || `ADV-2026-${String(count).padStart(3, '0')}`;
+    
+    const created: AduanCase = sanitizeAduanCase({
       ...newCase,
-      id: `adn-${Date.now()}`,
-      noRujukan: `ADV-2026-${String(count).padStart(3, '0')}`,
+      id: newCase.id || `adn-${Date.now()}`,
+      noRujukan: generatedNoRujukan,
       catatan: [],
       updatedAt: new Date().toISOString(),
-    };
+    });
 
     this.cases = [created, ...this.cases];
-    this.addLog(created.id, created.noRujukan, `Kes aduan baharu dicipta: "${created.tajuk}"`, 'Sarah Adams', 'aduan_created');
+    this.addLog(created.id, created.noRujukan, `Kes aduan baharu didaftarkan: "${created.namaPengadu}" [${created.sumberAduan}]`, 'Sarah Adams', 'aduan_created');
     this.notify();
 
     if (db) {
@@ -402,6 +467,35 @@ class AduanService {
     return created;
   }
 
+  public async updateCase(updatedData: Partial<AduanCase> & { id: string }, authorName: string = 'Sarah Adams'): Promise<AduanCase> {
+    const caseIndex = this.cases.findIndex(c => c.id === updatedData.id);
+    if (caseIndex === -1) throw new Error('Kes aduan tidak dijumpai');
+
+    const oldCase = this.cases[caseIndex];
+    const now = new Date().toISOString();
+    
+    const merged = sanitizeAduanCase({
+      ...oldCase,
+      ...updatedData,
+      updatedAt: now,
+      tarikhSelesai: updatedData.status === 'Selesai' ? (oldCase.tarikhSelesai || now) : (updatedData.status === 'Ditolak' ? (oldCase.tarikhSelesai || now) : undefined),
+    });
+
+    this.cases[caseIndex] = merged;
+    this.addLog(merged.id, merged.noRujukan, `Maklumat kes aduan telah dikemaskini oleh ${authorName}`, authorName, 'status_change');
+    this.notify();
+
+    if (db) {
+      try {
+        await setDoc(doc(db, 'aduan', merged.id), merged, { merge: true });
+      } catch (e) {
+        console.error('Failed to sync updated case to Firebase:', e);
+      }
+    }
+
+    return merged;
+  }
+
   public async updateCaseStatus(id: string, newStatus: AduanStatus, authorName: string = 'Sarah Adams'): Promise<void> {
     const caseIndex = this.cases.findIndex(c => c.id === id);
     if (caseIndex === -1) return;
@@ -410,11 +504,11 @@ class AduanService {
     if (oldStatus === newStatus) return;
 
     const now = new Date().toISOString();
-    const updatedCase = {
+    const updatedCase: AduanCase = {
       ...this.cases[caseIndex],
       status: newStatus,
       updatedAt: now,
-      tarikhSelesai: newStatus === 'Selesai' ? now : this.cases[caseIndex].tarikhSelesai,
+      tarikhSelesai: (newStatus === 'Selesai' || newStatus === 'Ditolak') ? now : undefined,
     };
 
     this.cases[caseIndex] = updatedCase;
@@ -453,21 +547,26 @@ class AduanService {
 
     const newNote: AduanNote = {
       ...noteData,
-      id: `note-${Date.now()}`,
+      id: `note-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
       aduanId,
       createdAt: new Date().toISOString(),
     };
 
     const targetCase = this.cases[caseIndex];
-    targetCase.catatan = [newNote, ...(targetCase.catatan || [])];
-    targetCase.updatedAt = new Date().toISOString();
+    const existingNotes = (targetCase.catatan || []).filter(n => n.id !== newNote.id);
+    const updatedCase: AduanCase = {
+      ...targetCase,
+      catatan: [newNote, ...existingNotes],
+      updatedAt: new Date().toISOString(),
+    };
 
+    this.cases[caseIndex] = updatedCase;
     this.addLog(aduanId, targetCase.noRujukan, `Catatan baharu ditambah: "${newNote.title}"`, newNote.authorName, 'note_added');
     this.notify();
 
     if (db) {
       try {
-        await setDoc(doc(db, 'aduan', aduanId), targetCase, { merge: true });
+        await setDoc(doc(db, 'aduan', aduanId), updatedCase, { merge: true });
       } catch (e) {
         console.error('Failed to sync note to Firebase:', e);
       }
@@ -501,47 +600,39 @@ class AduanService {
 
   // Simulate a live incoming aduan event for testing real-time capabilities
   public simulateRealtimeIncoming(): AduanCase {
-    const sampleTitles = [
-      'Lampu Jalan Utama Terpadam di Presint 8',
-      'Masalah Bau Longkang Awam Tepi Pasar',
-      'Isu Salur Air Paip Bocor di Foyer Utama',
-      'Penyampaian Kad Pengenalan Terlalu Lambat',
+    const sampleNames = [
+      'Mohd Faizul bin Ramli',
+      'Puan Noraini Zakaria',
+      'Encik Sivakumar a/l Ramasamy',
+      'Cik Nurul Izzati Mansor',
     ];
-    const sampleCategories = [
-      'Infrastruktur & Bangunan',
-      'Perkhidmatan & Layanan',
-      'IT & Sistem',
-    ] as const;
-
-    const randomTitle = sampleTitles[Math.floor(Math.random() * sampleTitles.length)];
-    const randomCat = sampleCategories[Math.floor(Math.random() * sampleCategories.length)];
+    const sampleSumber: SumberAduan[] = ['Aduan Awam', 'CMU', 'Parlimen', 'Adun', 'HQ'];
+    const randomName = sampleNames[Math.floor(Math.random() * sampleNames.length)];
+    const randomSumber = sampleSumber[Math.floor(Math.random() * sampleSumber.length)];
     
     const count = this.cases.length + 105;
     const now = new Date();
-    const slaTarget = new Date(now.getTime() + 86400000 * 3);
 
-    const simulated: AduanCase = {
+    const simulated: AduanCase = sanitizeAduanCase({
       id: `adn-sim-${Date.now()}`,
       noRujukan: `ADV-2026-${String(count).padStart(3, '0')}`,
       workspaceId: 'ws-integriti',
-      tajuk: randomTitle,
-      penerangan: 'Aduan ini diterima secara automatik melalui Saluran Awam Realtime Workspace.',
-      kategori: randomCat,
-      prioriti: 'Sederhana',
-      status: 'Belum Disahkan',
-      namaPengadu: 'Pengadu Awam Realtime',
-      emailPengadu: 'pengadu.realtime@awam.gov.my',
+      namaPengadu: randomName,
       telefonPengadu: '012-9988776',
-      assignee: 'Sarah Adams',
+      alamat: 'No. 22, Jalan Gemilang 4, Presint 9, Putrajaya',
+      sumberAduan: randomSumber,
+      catatanKes: 'Aduan ini diterima secara automatik melalui Saluran Awam Realtime Workspace.',
+      status: 'Belum Selesai',
+      gambarSiasatan: [],
+      tindakan: 'Belum Di Proses',
+      syorBantuan: 'Ada',
       tarikhAduan: now.toISOString(),
-      sasaranSLA: slaTarget.toISOString(),
-      tags: ['Realtime', 'Simulasi'],
       updatedAt: now.toISOString(),
       catatan: [],
-    };
+    });
 
     this.cases = [simulated, ...this.cases];
-    this.addLog(simulated.id, simulated.noRujukan, `(REALTIME) Aduan baharu diterima daripada sistem luar`, 'Sistem Realtime', 'aduan_created');
+    this.addLog(simulated.id, simulated.noRujukan, `(REALTIME) Aduan baharu diterima daripada ${simulated.sumberAduan}`, 'Sistem Realtime', 'aduan_created');
     this.notify();
 
     if (db) {

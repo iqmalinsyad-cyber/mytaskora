@@ -12,6 +12,7 @@ import { SupabaseModal } from './components/SupabaseModal';
 import { FirebaseDiagnostics } from './components/FirebaseDiagnostics';
 import { AduanDetailModal } from './components/AduanDetailModal';
 import { NewAduanModal } from './components/NewAduanModal';
+import { EditAduanModal } from './components/EditAduanModal';
 import { AiCopilotDrawer } from './components/AiCopilotDrawer';
 import { GlobalSearchModal } from './components/GlobalSearchModal';
 import { QuickActionModal } from './components/QuickActionModal';
@@ -146,6 +147,7 @@ export default function App() {
 
   // Modal Visibility States
   const [selectedCase, setSelectedCase] = useState<AduanCase | null>(null);
+  const [caseToEdit, setCaseToEdit] = useState<AduanCase | null>(null);
   const [isNewAduanOpen, setIsNewAduanOpen] = useState(false);
   const [isSupabaseOpen, setIsSupabaseOpen] = useState(false);
   const [isFirebaseDiagnosticsOpen, setIsFirebaseDiagnosticsOpen] = useState(false);
@@ -230,9 +232,10 @@ export default function App() {
   };
 
   const handleAddNote = async (aduanId: string, noteData: any) => {
-    const newNote = await aduanService.addNoteToCase(aduanId, noteData);
-    if (selectedCase && selectedCase.id === aduanId) {
-      setSelectedCase(prev => prev ? { ...prev, catatan: [newNote, ...(prev.catatan || [])] } : null);
+    await aduanService.addNoteToCase(aduanId, noteData);
+    const updated = aduanService.getCaseById(aduanId);
+    if (updated && selectedCase && selectedCase.id === aduanId) {
+      setSelectedCase({ ...updated });
     }
   };
 
@@ -241,6 +244,15 @@ export default function App() {
     setRealtimeToast(`Kes baharu [${created.noRujukan}] berjaya didaftarkan!`);
     setTimeout(() => setRealtimeToast(null), 4000);
     return created;
+  };
+
+  const handleUpdateCase = async (updatedData: Partial<AduanCase> & { id: string }) => {
+    await aduanService.updateCase(updatedData);
+    if (selectedCase && selectedCase.id === updatedData.id) {
+      setSelectedCase((prev) => (prev ? { ...prev, ...updatedData } : null));
+    }
+    setRealtimeToast(`Kes [${updatedData.noRujukan || 'Aduan'}] berjaya dikemaskini & disinkronkan ke Firebase!`);
+    setTimeout(() => setRealtimeToast(null), 4000);
   };
 
   const handleSimulateRealtime = () => {
@@ -384,6 +396,7 @@ export default function App() {
                 filters={filters}
                 setFilters={setFilters}
                 onSelectCase={(c) => setSelectedCase(c)}
+                onEditCase={(c) => setCaseToEdit(c)}
                 onUpdateStatus={handleUpdateStatus}
                 onOpenNewAduanModal={() => setIsNewAduanOpen(true)}
                 onOpenNoteModal={(c) => setSelectedCase(c)}
@@ -398,6 +411,7 @@ export default function App() {
               filters={filters}
               setFilters={setFilters}
               onSelectCase={(c) => setSelectedCase(c)}
+              onEditCase={(c) => setCaseToEdit(c)}
               onUpdateStatus={handleUpdateStatus}
               onOpenNewAduanModal={() => setIsNewAduanOpen(true)}
               onOpenNoteModal={(c) => setSelectedCase(c)}
@@ -491,9 +505,19 @@ export default function App() {
         aduan={selectedCase}
         onClose={() => setSelectedCase(null)}
         onUpdateStatus={handleUpdateStatus}
+        onEditCase={(c) => {
+          setCaseToEdit(c);
+          setSelectedCase(null);
+        }}
         onAddNote={handleAddNote}
-        onGenerateAiDraftResponse={handleGenerateAiDraftResponse}
         onDeleteCase={handleDeleteCase}
+      />
+
+      <EditAduanModal
+        isOpen={!!caseToEdit}
+        onClose={() => setCaseToEdit(null)}
+        aduanCase={caseToEdit}
+        onUpdateCase={handleUpdateCase}
       />
 
       <NewAduanModal

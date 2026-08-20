@@ -1,7 +1,7 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   X,
-  PlusCircle,
+  Edit3,
   Camera,
   Upload,
   Trash2,
@@ -12,45 +12,38 @@ import {
   Phone,
   MapPin,
   FileText,
-  Building,
   Tag,
   Clock,
-  Sparkles,
   HardDrive,
   RefreshCw,
   ExternalLink,
 } from 'lucide-react';
 import {
+  AduanCase,
   AduanStatus,
   SumberAduan,
   TindakanAduan,
   SyorBantuan,
   GambarSiasatan,
-  Workspace,
-  AduanCategory,
-  AduanPriority,
 } from '../types';
 import { CameraCaptureModal } from './CameraCaptureModal';
 import { googleDriveService } from '../services/googleDriveService';
 
-interface NewAduanModalProps {
+interface EditAduanModalProps {
   isOpen: boolean;
   onClose: () => void;
-  workspaces?: Workspace[];
-  currentWorkspaceId?: string;
-  onAddCase: (newCaseData: any) => Promise<any>;
+  aduanCase: AduanCase | null;
+  onUpdateCase: (updatedData: Partial<AduanCase> & { id: string }) => Promise<any>;
 }
 
-export const NewAduanModal: React.FC<NewAduanModalProps> = ({
+export const EditAduanModal: React.FC<EditAduanModalProps> = ({
   isOpen,
   onClose,
-  workspaces = [],
-  currentWorkspaceId = 'ws-integriti',
-  onAddCase,
+  aduanCase,
+  onUpdateCase,
 }) => {
-  // Form fields according to requirements
   const [namaPengadu, setNamaPengadu] = useState('');
-  const [noRujukan, setNoRujukan] = useState(() => `ADV-2026-${Math.floor(100 + Math.random() * 900)}`);
+  const [noRujukan, setNoRujukan] = useState('');
   const [telefonPengadu, setTelefonPengadu] = useState('');
   const [alamat, setAlamat] = useState('');
   const [sumberAduan, setSumberAduan] = useState<SumberAduan>('Aduan Awam');
@@ -60,18 +53,28 @@ export const NewAduanModal: React.FC<NewAduanModalProps> = ({
   const [tindakan, setTindakan] = useState<TindakanAduan>('Belum Di Proses');
   const [syorBantuan, setSyorBantuan] = useState<SyorBantuan>('Tiada');
 
-  // Secondary/compatibility fields
-  const [workspaceId, setWorkspaceId] = useState(currentWorkspaceId);
-  const [kategori, setKategori] = useState<AduanCategory>('Infrastruktur & Bangunan');
-  const [prioriti, setPrioriti] = useState<AduanPriority>('Sederhana');
-
-  // UI state
   const [isCameraOpen, setIsCameraOpen] = useState(false);
   const [previewImage, setPreviewImage] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
 
-  if (!isOpen) return null;
+  useEffect(() => {
+    if (aduanCase) {
+      setNamaPengadu(aduanCase.namaPengadu || '');
+      setNoRujukan(aduanCase.noRujukan || '');
+      setTelefonPengadu(aduanCase.telefonPengadu || '');
+      setAlamat(aduanCase.alamat || '');
+      setSumberAduan(aduanCase.sumberAduan || 'Aduan Awam');
+      setCatatanKes(aduanCase.catatanKes || aduanCase.penerangan || '');
+      setStatusAduan(aduanCase.status || 'Belum Selesai');
+      setGambarSiasatan(aduanCase.gambarSiasatan || []);
+      setTindakan(aduanCase.tindakan || 'Belum Di Proses');
+      setSyorBantuan(aduanCase.syorBantuan || 'Tiada');
+      setErrors({});
+    }
+  }, [aduanCase, isOpen]);
+
+  if (!isOpen || !aduanCase) return null;
 
   const validateForm = () => {
     const errs: Record<string, string> = {};
@@ -96,15 +99,15 @@ export const NewAduanModal: React.FC<NewAduanModalProps> = ({
     );
 
     try {
-      const cleanRef = (refNo || noRujukan || 'kes').replace(/[^a-zA-Z0-9_-]/g, '_');
-      const cleanName = (complName || namaPengadu || 'pengadu').replace(/[^a-zA-Z0-9_-]/g, '_');
+      const cleanRef = (refNo || noRujukan || aduanCase?.noRujukan || 'kes').replace(/[^a-zA-Z0-9_-]/g, '_');
+      const cleanName = (complName || namaPengadu || aduanCase?.namaPengadu || 'pengadu').replace(/[^a-zA-Z0-9_-]/g, '_');
       const filename = `${cleanRef}_${cleanName}_${Date.now()}.jpg`;
 
       const uploadResult = await googleDriveService.uploadImageToDrive({
         base64Data: newImg.url,
         filename,
-        noRujukan: refNo || noRujukan,
-        namaPengadu: complName || namaPengadu,
+        noRujukan: refNo || noRujukan || aduanCase?.noRujukan,
+        namaPengadu: complName || namaPengadu || aduanCase?.namaPengadu,
       });
 
       if (uploadResult.success && uploadResult.driveUrl) {
@@ -152,7 +155,6 @@ export const NewAduanModal: React.FC<NewAduanModalProps> = ({
       reader.onload = (uploadEvent) => {
         const resultUrl = uploadEvent.target?.result as string;
         if (resultUrl) {
-          // Compress image to friendly size
           const img = new Image();
           img.src = resultUrl;
           img.onload = () => {
@@ -190,7 +192,6 @@ export const NewAduanModal: React.FC<NewAduanModalProps> = ({
       reader.readAsDataURL(file);
     });
 
-    // Reset input
     e.target.value = '';
   };
 
@@ -219,13 +220,10 @@ export const NewAduanModal: React.FC<NewAduanModalProps> = ({
 
     setIsSubmitting(true);
     try {
-      const now = new Date();
-      const slaTarget = new Date(now.getTime() + 3 * 86400000).toISOString();
-
-      await onAddCase({
-        workspaceId,
-        noRujukan: noRujukan.trim(),
+      await onUpdateCase({
+        id: aduanCase.id,
         namaPengadu: namaPengadu.trim(),
+        noRujukan: noRujukan.trim(),
         telefonPengadu: telefonPengadu.trim(),
         alamat: alamat.trim(),
         sumberAduan,
@@ -235,22 +233,14 @@ export const NewAduanModal: React.FC<NewAduanModalProps> = ({
         tindakan,
         syorBantuan,
         tajuk: `${sumberAduan}: Aduan daripada ${namaPengadu.trim()}`,
-        penerangan: catatanKes.trim() || `Aduan diterima daripada saluran ${sumberAduan}`,
-        kategori,
-        prioriti,
-        emailPengadu: 'pengadu@awam.gov.my',
+        penerangan: catatanKes.trim() || aduanCase.penerangan,
         lokasi: alamat.trim(),
-        assignee: 'Sarah Adams',
-        assigneeRole: 'Pegawai Penyiasat Aduan',
-        tarikhAduan: now.toISOString(),
-        sasaranSLA: slaTarget,
-        tarikhSelesai: statusAduan === 'Selesai' || statusAduan === 'Ditolak' ? now.toISOString() : undefined,
       });
 
       onClose();
     } catch (err) {
-      console.error('Error creating complaint:', err);
-      alert('Ralat semasa mendaftar kes aduan. Sila cuba sebentar lagi.');
+      console.error('Error updating complaint:', err);
+      alert('Ralat semasa mengemaskini aduan. Sila cuba lagi.');
     } finally {
       setIsSubmitting(false);
     }
@@ -263,18 +253,18 @@ export const NewAduanModal: React.FC<NewAduanModalProps> = ({
           {/* Modal Header */}
           <div className="bg-slate-900 text-white p-4 sm:p-5 flex items-center justify-between border-b border-slate-800 shrink-0">
             <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-2xl bg-indigo-600 text-white flex items-center justify-center font-bold shadow-lg shadow-indigo-600/30">
-                <PlusCircle className="w-5 h-5" />
+              <div className="w-10 h-10 rounded-2xl bg-amber-600 text-white flex items-center justify-center font-bold shadow-lg shadow-amber-600/30">
+                <Edit3 className="w-5 h-5" />
               </div>
               <div>
                 <h3 className="text-base font-extrabold tracking-tight text-white flex items-center gap-2">
-                  <span>Daftar Aduan Baharu</span>
-                  <span className="text-[10px] bg-indigo-500/20 text-indigo-300 px-2 py-0.5 rounded-full border border-indigo-400/30">
-                    Sistem Kes Aduan
+                  <span>Kemaskini Kes Aduan</span>
+                  <span className="text-[10px] font-mono bg-amber-500/20 text-amber-300 px-2 py-0.5 rounded-full border border-amber-400/30">
+                    {aduanCase.noRujukan}
                   </span>
                 </h3>
                 <p className="text-xs text-slate-300 font-normal">
-                  Lengkapkan maklumat mandatori bertanda (<span className="text-rose-400 font-bold">*</span>) & auto-sync ke Firebase
+                  Kemas kini maklumat aduan, status, tindakan, syor dan gambar siasatan
                 </p>
               </div>
             </div>
@@ -307,7 +297,7 @@ export const NewAduanModal: React.FC<NewAduanModalProps> = ({
             {/* Section 1: Maklumat Utama & Pengadu */}
             <div className="space-y-3">
               <div className="flex items-center gap-2 pb-1 border-b border-slate-100">
-                <User className="w-4 h-4 text-indigo-600" />
+                <User className="w-4 h-4 text-amber-600" />
                 <h4 className="text-xs font-bold text-slate-900 uppercase tracking-wider">
                   1. Maklumat Utama & Rujukan (Mandatori)
                 </h4>
@@ -327,10 +317,9 @@ export const NewAduanModal: React.FC<NewAduanModalProps> = ({
                         setNamaPengadu(e.target.value);
                         if (errors.namaPengadu) setErrors((prev) => ({ ...prev, namaPengadu: '' }));
                       }}
-                      placeholder="cth. Dato' Hj. Azman Kassim / Siti Fatimah"
                       className={`w-full pl-9 pr-3 py-2.5 rounded-xl bg-slate-50 border ${
                         errors.namaPengadu ? 'border-rose-400 bg-rose-50/30' : 'border-slate-200'
-                      } font-medium text-slate-900 focus:ring-2 focus:ring-indigo-500 focus:bg-white focus:outline-none transition-all`}
+                      } font-medium text-slate-900 focus:ring-2 focus:ring-amber-500 focus:bg-white focus:outline-none transition-all`}
                     />
                     <User className="w-4 h-4 text-slate-400 absolute left-3 top-3" />
                   </div>
@@ -339,18 +328,9 @@ export const NewAduanModal: React.FC<NewAduanModalProps> = ({
 
                 {/* 2. No Rujukan (Mandatori) */}
                 <div>
-                  <div className="flex items-center justify-between mb-1">
-                    <label className="block font-bold text-slate-800">
-                      2. No Rujukan <span className="text-rose-500 font-extrabold">*</span>
-                    </label>
-                    <button
-                      type="button"
-                      onClick={() => setNoRujukan(`ADV-2026-${Math.floor(100 + Math.random() * 900)}`)}
-                      className="text-[10px] text-indigo-600 hover:text-indigo-800 font-bold"
-                    >
-                      Jana Auto
-                    </button>
-                  </div>
+                  <label className="block font-bold text-slate-800 mb-1">
+                    2. No Rujukan <span className="text-rose-500 font-extrabold">*</span>
+                  </label>
                   <div className="relative">
                     <input
                       type="text"
@@ -359,10 +339,9 @@ export const NewAduanModal: React.FC<NewAduanModalProps> = ({
                         setNoRujukan(e.target.value);
                         if (errors.noRujukan) setErrors((prev) => ({ ...prev, noRujukan: '' }));
                       }}
-                      placeholder="ADV-2026-XXX"
                       className={`w-full pl-9 pr-3 py-2.5 rounded-xl bg-slate-50 border ${
                         errors.noRujukan ? 'border-rose-400 bg-rose-50/30' : 'border-slate-200'
-                      } font-mono font-bold text-slate-900 focus:ring-2 focus:ring-indigo-500 focus:bg-white focus:outline-none transition-all`}
+                      } font-mono font-bold text-slate-900 focus:ring-2 focus:ring-amber-500 focus:bg-white focus:outline-none transition-all`}
                     />
                     <Tag className="w-4 h-4 text-slate-400 absolute left-3 top-3" />
                   </div>
@@ -382,10 +361,9 @@ export const NewAduanModal: React.FC<NewAduanModalProps> = ({
                         setTelefonPengadu(e.target.value);
                         if (errors.telefonPengadu) setErrors((prev) => ({ ...prev, telefonPengadu: '' }));
                       }}
-                      placeholder="cth. 012-3849201 / 03-88881234"
                       className={`w-full pl-9 pr-3 py-2.5 rounded-xl bg-slate-50 border ${
                         errors.telefonPengadu ? 'border-rose-400 bg-rose-50/30' : 'border-slate-200'
-                      } font-medium text-slate-900 focus:ring-2 focus:ring-indigo-500 focus:bg-white focus:outline-none transition-all`}
+                      } font-medium text-slate-900 focus:ring-2 focus:ring-amber-500 focus:bg-white focus:outline-none transition-all`}
                     />
                     <Phone className="w-4 h-4 text-slate-400 absolute left-3 top-3" />
                   </div>
@@ -400,7 +378,7 @@ export const NewAduanModal: React.FC<NewAduanModalProps> = ({
                   <select
                     value={sumberAduan}
                     onChange={(e) => setSumberAduan(e.target.value as SumberAduan)}
-                    className="w-full px-3 py-2.5 rounded-xl bg-slate-50 border border-slate-200 font-bold text-slate-900 focus:ring-2 focus:ring-indigo-500 focus:bg-white focus:outline-none transition-all cursor-pointer"
+                    className="w-full px-3 py-2.5 rounded-xl bg-slate-50 border border-slate-200 font-bold text-slate-900 focus:ring-2 focus:ring-amber-500 focus:bg-white focus:outline-none transition-all cursor-pointer"
                   >
                     <option value="CMU">CMU</option>
                     <option value="Aduan Awam">Aduan Awam</option>
@@ -426,10 +404,9 @@ export const NewAduanModal: React.FC<NewAduanModalProps> = ({
                       setAlamat(e.target.value);
                       if (errors.alamat) setErrors((prev) => ({ ...prev, alamat: '' }));
                     }}
-                    placeholder="Masukkan alamat lengkap lokasi kejadian atau kediaman..."
                     className={`w-full pl-9 pr-3 py-2.5 rounded-xl bg-slate-50 border ${
                       errors.alamat ? 'border-rose-400 bg-rose-50/30' : 'border-slate-200'
-                    } font-medium text-slate-900 focus:ring-2 focus:ring-indigo-500 focus:bg-white focus:outline-none transition-all resize-none`}
+                    } font-medium text-slate-900 focus:ring-2 focus:ring-amber-500 focus:bg-white focus:outline-none transition-all resize-none`}
                   />
                   <MapPin className="w-4 h-4 text-slate-400 absolute left-3 top-3" />
                 </div>
@@ -440,7 +417,7 @@ export const NewAduanModal: React.FC<NewAduanModalProps> = ({
             {/* Section 2: Status, Tindakan & Syor Bantuan */}
             <div className="space-y-3 pt-2">
               <div className="flex items-center gap-2 pb-1 border-b border-slate-100">
-                <FileText className="w-4 h-4 text-indigo-600" />
+                <FileText className="w-4 h-4 text-amber-600" />
                 <h4 className="text-xs font-bold text-slate-900 uppercase tracking-wider">
                   2. Status, Tindakan & Syor Bantuan
                 </h4>
@@ -455,7 +432,7 @@ export const NewAduanModal: React.FC<NewAduanModalProps> = ({
                   <select
                     value={statusAduan}
                     onChange={(e) => setStatusAduan(e.target.value as AduanStatus)}
-                    className="w-full px-3 py-2.5 rounded-xl bg-slate-50 border border-slate-200 font-bold text-slate-900 focus:ring-2 focus:ring-indigo-500 focus:bg-white focus:outline-none transition-all cursor-pointer"
+                    className="w-full px-3 py-2.5 rounded-xl bg-slate-50 border border-slate-200 font-bold text-slate-900 focus:ring-2 focus:ring-amber-500 focus:bg-white focus:outline-none transition-all cursor-pointer"
                   >
                     <option value="Belum Selesai">Belum Selesai</option>
                     <option value="Dalam Siasatan">Dalam Siasatan</option>
@@ -465,7 +442,7 @@ export const NewAduanModal: React.FC<NewAduanModalProps> = ({
                   </select>
                 </div>
 
-                {/* 9. Tindakan (Pilihan) */}
+                {/* 9. Tindakan */}
                 <div>
                   <label className="block font-bold text-slate-800 mb-1">
                     9. Tindakan
@@ -473,7 +450,7 @@ export const NewAduanModal: React.FC<NewAduanModalProps> = ({
                   <select
                     value={tindakan}
                     onChange={(e) => setTindakan(e.target.value as TindakanAduan)}
-                    className="w-full px-3 py-2.5 rounded-xl bg-slate-50 border border-slate-200 font-bold text-slate-900 focus:ring-2 focus:ring-indigo-500 focus:bg-white focus:outline-none transition-all cursor-pointer"
+                    className="w-full px-3 py-2.5 rounded-xl bg-slate-50 border border-slate-200 font-bold text-slate-900 focus:ring-2 focus:ring-amber-500 focus:bg-white focus:outline-none transition-all cursor-pointer"
                   >
                     <option value="Belum Di Proses">Belum Di Proses</option>
                     <option value="KIV">KIV</option>
@@ -481,7 +458,7 @@ export const NewAduanModal: React.FC<NewAduanModalProps> = ({
                   </select>
                 </div>
 
-                {/* 10. Syor Bantuan (Pilihan: Ada, Tiada) */}
+                {/* 10. Syor Bantuan */}
                 <div>
                   <label className="block font-bold text-slate-800 mb-1">
                     10. Syor Bantuan
@@ -489,7 +466,7 @@ export const NewAduanModal: React.FC<NewAduanModalProps> = ({
                   <select
                     value={syorBantuan}
                     onChange={(e) => setSyorBantuan(e.target.value as SyorBantuan)}
-                    className="w-full px-3 py-2.5 rounded-xl bg-slate-50 border border-slate-200 font-bold text-slate-900 focus:ring-2 focus:ring-indigo-500 focus:bg-white focus:outline-none transition-all cursor-pointer"
+                    className="w-full px-3 py-2.5 rounded-xl bg-slate-50 border border-slate-200 font-bold text-slate-900 focus:ring-2 focus:ring-amber-500 focus:bg-white focus:outline-none transition-all cursor-pointer"
                   >
                     <option value="Tiada">Tiada</option>
                     <option value="Ada">Ada</option>
@@ -498,24 +475,24 @@ export const NewAduanModal: React.FC<NewAduanModalProps> = ({
               </div>
             </div>
 
-            {/* Section 3: Catatan Kes (Tidak mandatori) */}
+            {/* Section 3: Catatan Kes */}
             <div className="space-y-2 pt-2">
               <div className="flex items-center justify-between pb-1 border-b border-slate-100">
                 <div className="flex items-center gap-2">
-                  <FileText className="w-4 h-4 text-indigo-600" />
+                  <FileText className="w-4 h-4 text-amber-600" />
                   <h4 className="text-xs font-bold text-slate-900 uppercase tracking-wider">
                     6. Catatan Kes
                   </h4>
                 </div>
-                <span className="text-[10px] text-slate-400 font-medium">(Tidak mandatori / Boleh diisi kemudian)</span>
+                <span className="text-[10px] text-slate-400 font-medium">(Kemaskini Catatan / Kronologi Kes)</span>
               </div>
 
               <textarea
                 rows={3}
                 value={catatanKes}
                 onChange={(e) => setCatatanKes(e.target.value)}
-                placeholder="Tuliskan butiran ringkas atau fakta awal kes aduan ini jika ada..."
-                className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 border border-slate-200 font-medium text-slate-900 focus:ring-2 focus:ring-indigo-500 focus:bg-white focus:outline-none transition-all"
+                placeholder="Tuliskan catatan kemaskini, perkembangan atau butiran siasatan..."
+                className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 border border-slate-200 font-medium text-slate-900 focus:ring-2 focus:ring-amber-500 focus:bg-white focus:outline-none transition-all"
               />
             </div>
 
@@ -523,7 +500,7 @@ export const NewAduanModal: React.FC<NewAduanModalProps> = ({
             <div className="space-y-3 pt-2">
               <div className="flex items-center justify-between pb-1 border-b border-slate-100">
                 <div className="flex items-center gap-2">
-                  <Camera className="w-4 h-4 text-indigo-600" />
+                  <Camera className="w-4 h-4 text-amber-600" />
                   <h4 className="text-xs font-bold text-slate-900 uppercase tracking-wider">
                     8. Gambar Siasatan
                   </h4>
@@ -533,13 +510,12 @@ export const NewAduanModal: React.FC<NewAduanModalProps> = ({
                 </span>
               </div>
 
-              {/* Upload / Snap Buttons */}
               <div className="flex flex-wrap items-center gap-2">
                 <button
                   type="button"
                   onClick={() => setIsCameraOpen(true)}
                   disabled={gambarSiasatan.length >= 5}
-                  className="px-3.5 py-2 rounded-xl bg-indigo-50 hover:bg-indigo-100 text-indigo-700 font-bold border border-indigo-200 flex items-center gap-2 transition-all disabled:opacity-40 disabled:cursor-not-allowed"
+                  className="px-3.5 py-2 rounded-xl bg-amber-50 hover:bg-amber-100 text-amber-800 font-bold border border-amber-200 flex items-center gap-2 transition-all disabled:opacity-40 disabled:cursor-not-allowed"
                 >
                   <Camera className="w-4 h-4" />
                   <span>Ambil Foto / Snap Gambar</span>
@@ -619,7 +595,7 @@ export const NewAduanModal: React.FC<NewAduanModalProps> = ({
               ) : (
                 <div className="p-4 rounded-2xl border-2 border-dashed border-slate-200 bg-slate-50 text-center text-slate-400">
                   <ImageIcon className="w-6 h-6 mx-auto mb-1 text-slate-300" />
-                  <p className="text-[11px]">Tiada gambar siasatan dimuat naik setakat ini (Pilihan maks 5 gambar)</p>
+                  <p className="text-[11px]">Tiada gambar siasatan dilampirkan (Pilihan maks 5 gambar)</p>
                 </div>
               )}
             </div>
@@ -639,17 +615,17 @@ export const NewAduanModal: React.FC<NewAduanModalProps> = ({
               type="button"
               onClick={handleSubmit}
               disabled={isSubmitting}
-              className="px-6 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 active:scale-98 text-white font-extrabold shadow-lg shadow-indigo-600/30 flex items-center gap-2 transition-all disabled:opacity-50"
+              className="px-6 py-2.5 rounded-xl bg-amber-600 hover:bg-amber-700 active:scale-98 text-white font-extrabold shadow-lg shadow-amber-600/30 flex items-center gap-2 transition-all disabled:opacity-50"
             >
               {isSubmitting ? (
                 <>
                   <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                  <span>Menyimpan ke Firebase...</span>
+                  <span>Mengemaskini ke Firebase...</span>
                 </>
               ) : (
                 <>
                   <CheckCircle2 className="w-4 h-4" />
-                  <span>Daftar Aduan & Sync Firebase</span>
+                  <span>Simpan & Sync Firebase</span>
                 </>
               )}
             </button>

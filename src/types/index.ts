@@ -1,9 +1,47 @@
+export type SumberAduan = 
+  | 'CMU' 
+  | 'Aduan Awam' 
+  | 'Parlimen' 
+  | 'Adun' 
+  | 'HQ' 
+  | 'MAIS' 
+  | 'JAIS';
+
 export type AduanStatus = 
-  | 'Belum Disahkan' 
+  | 'Belum Selesai' 
   | 'Dalam Siasatan' 
-  | 'Perlu Maklumat' 
+  | 'Perlu Maklumat (KIV)' 
   | 'Selesai' 
-  | 'Ditolak';
+  | 'Ditolak'
+  | 'Belum Disahkan' // legacy compatibility
+  | 'Perlu Maklumat'; // legacy compatibility
+
+export type TindakanAduan = 'Telah Diproses' | 'KIV' | 'Belum Di Proses';
+
+export type SyorBantuan = 'Ada' | 'Tiada';
+
+export interface GambarSiasatan {
+  id: string;
+  url: string;
+  name?: string;
+  capturedAt?: string;
+  driveUrl?: string; // Pautan fail di Google Drive
+  driveFileId?: string; // ID Fail di Google Drive
+  driveDownloadUrl?: string; // Pautan muat turun Google Drive
+  driveFolderName?: string; // Nama folder simpanan Google Drive
+  isUploadingToDrive?: boolean;
+}
+
+export interface GoogleDriveConfig {
+  webhookUrl: string; // Apps Script Web App URL
+  folderId?: string; // Google Drive Folder ID
+  folderName?: string; // Default 'Sistem Aduan - Bukti Siasatan'
+  autoUpload: boolean;
+  isEnabled: boolean;
+  lastTestedAt?: string;
+  lastTestStatus?: 'success' | 'error';
+  lastTestMessage?: string;
+}
 
 export type AduanPriority = 'Rendah' | 'Sederhana' | 'Tinggi' | 'Kritikal';
 
@@ -50,26 +88,33 @@ export interface AduanNote {
 
 export interface AduanCase {
   id: string;
-  noRujukan: string;
-  workspaceId: string;
-  tajuk: string;
-  penerangan: string;
-  kategori: AduanCategory;
-  prioriti: AduanPriority;
-  status: AduanStatus;
-  namaPengadu: string;
-  emailPengadu: string;
-  telefonPengadu?: string;
+  noRujukan: string; // 2. No Rujukan
+  namaPengadu: string; // 1. Nama
+  telefonPengadu: string; // 3. No Telefon
+  alamat: string; // 4. Alamat
+  sumberAduan: SumberAduan; // 5. Sumber Aduan
+  catatanKes?: string; // 6. Catatan Kes
+  status: AduanStatus; // 7. Status Aduan
+  gambarSiasatan?: GambarSiasatan[]; // 8. Gambar Siasatan (Maksimum 5 Gambar)
+  tindakan: TindakanAduan; // 9. Tindakan
+  syorBantuan: SyorBantuan; // 10. Syor Bantuan
+
+  workspaceId?: string;
+  tajuk?: string;
+  penerangan?: string;
+  kategori?: AduanCategory;
+  prioriti?: AduanPriority;
+  emailPengadu?: string;
   lokasi?: string;
-  assignee: string;
+  assignee?: string;
   assigneeRole?: string;
   assigneeAvatar?: string;
   tarikhAduan: string;
-  sasaranSLA: string; // ISO date string or YYYY-MM-DD
+  sasaranSLA?: string; // ISO date string or YYYY-MM-DD
   tarikhSelesai?: string;
   csatRating?: number; // 1-5
-  catatan: AduanNote[];
-  tags: string[];
+  catatan?: AduanNote[];
+  tags?: string[];
   updatedAt: string;
 }
 
@@ -94,6 +139,9 @@ export interface FilterOptions {
   status: string; // 'all' or AduanStatus
   priority: string; // 'all' or AduanPriority
   category: string; // 'all' or AduanCategory
+  sumberAduan?: string; // 'all' or SumberAduan
+  tindakan?: string; // 'all' or TindakanAduan
+  syorBantuan?: string; // 'all' or SyorBantuan
   searchQuery: string;
   dateRange: '7d' | '30d' | '90d' | 'all';
   workspaceId: string;
