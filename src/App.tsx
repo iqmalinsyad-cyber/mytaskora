@@ -241,7 +241,30 @@ export default function App() {
 
   const handleAddCase = async (newCaseData: any) => {
     const created = await aduanService.addCase(newCaseData);
-    setRealtimeToast(`Kes baharu [${created.noRujukan}] berjaya didaftarkan!`);
+    
+    // Switch to dashboard or appropriate view and reset filter so the new complaint is immediately visible
+    if (activeTab !== 'dashboard' && activeTab !== 'kanban') {
+      setActiveTab('dashboard');
+    }
+
+    if (newCaseData.workspaceId && currentWorkspace.id !== 'all' && currentWorkspace.id !== newCaseData.workspaceId) {
+      const targetWs = workspaces.find((w) => w.id === newCaseData.workspaceId);
+      if (targetWs) {
+        setCurrentWorkspace(targetWs);
+      }
+    }
+
+    setFilters((prev) => ({
+      ...prev,
+      status: 'all',
+      searchQuery: '',
+      sumberAduan: 'all',
+      tindakan: 'all',
+      syorBantuan: 'all',
+      workspaceId: newCaseData.workspaceId || currentWorkspace.id,
+    }));
+
+    setRealtimeToast(`✅ Aduan Baharu [${created.noRujukan} - ${created.namaPengadu}] berjaya didaftarkan & disegerak ke Firebase!`);
     setTimeout(() => setRealtimeToast(null), 4000);
     return created;
   };

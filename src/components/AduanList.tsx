@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Search,
   Filter,
@@ -53,6 +53,10 @@ export const AduanList: React.FC<AduanListProps> = ({
 }) => {
   const [activeTab, setActiveTab] = useState<string>(filters.status || 'all');
   const [caseToDeleteConfirm, setCaseToDeleteConfirm] = useState<{ id: string; noRujukan: string; namaPengadu: string } | null>(null);
+
+  useEffect(() => {
+    setActiveTab(filters.status || 'all');
+  }, [filters.status]);
 
   const handleTabChange = (status: string) => {
     setActiveTab(status);

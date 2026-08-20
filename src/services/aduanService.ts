@@ -13,6 +13,30 @@ type ActivityListener = (logs: ActivityLog[]) => void;
 export type DiagnosticLog = { id: string; timestamp: string; level: 'info' | 'success' | 'warn' | 'error'; message: string };
 type DiagnosticListener = (logs: DiagnosticLog[]) => void;
 
+/**
+ * Strips all undefined fields and ensures safe JSON-serializable structure for Firestore setDoc.
+ * Firestore throws a fatal error if any field value is undefined.
+ */
+export function cleanForFirestore<T>(data: T): any {
+  if (data === null || data === undefined) {
+    return null;
+  }
+  if (Array.isArray(data)) {
+    return data.map((item) => cleanForFirestore(item));
+  }
+  if (typeof data === 'object') {
+    const cleaned: Record<string, any> = {};
+    for (const key of Object.keys(data as any)) {
+      const val = (data as any)[key];
+      if (val !== undefined) {
+        cleaned[key] = cleanForFirestore(val);
+      }
+    }
+    return cleaned;
+  }
+  return data;
+}
+
 export function sanitizeAduanCase(raw: any): AduanCase {
   const normalizedStatus: AduanStatus = 
     raw.status === 'Belum Disahkan' ? 'Belum Selesai' :
@@ -51,9 +75,9 @@ export function sanitizeAduanCase(raw: any): AduanCase {
     assigneeRole: raw.assigneeRole || 'Pegawai Aduan',
     assigneeAvatar: raw.assigneeAvatar || 'https://api.dicebear.com/7.x/personas/svg?seed=Aisha&clothingColor=3b82f6&hair=hijab',
     tarikhAduan: raw.tarikhAduan || new Date().toISOString(),
-    sasaranSLA: raw.sasaranSLA,
-    tarikhSelesai: raw.tarikhSelesai,
-    csatRating: raw.csatRating,
+    sasaranSLA: raw.sasaranSLA || undefined,
+    tarikhSelesai: raw.tarikhSelesai || undefined,
+    csatRating: raw.csatRating !== undefined ? raw.csatRating : undefined,
     catatan: Array.isArray(raw.catatan) ? raw.catatan : [],
     tags: Array.isArray(raw.tags) ? raw.tags : [],
     updatedAt: raw.updatedAt || new Date().toISOString(),
@@ -239,10 +263,34 @@ class AduanService {
           const fromCache = snapshot.metadata.hasPendingWrites;
           if (!snapshot.empty) {
             const loadedCases: AduanCase[] = [];
+            const loadedIds = new Set<string>();
+
             snapshot.forEach((docSnap) => {
               const data = docSnap.data();
-              loadedCases.push(sanitizeAduanCase(data));
+              const c = sanitizeAduanCase(data);
+              loadedCases.push(c);
+              loadedIds.add(c.id);
             });
+
+            // Preserve local cases created/updated in the last 2 minutes if not yet in snapshot!
+            const now = Date.now();
+            const pendingLocal = this.cases.filter((c) => {
+              if (loadedIds.has(c.id)) return false;
+              const age = now - new Date(c.updatedAt || c.tarikhAduan || 0).getTime();
+              return age < 120000;
+            });
+
+            if (pendingLocal.length > 0) {
+              console.log(`Preserving ${pendingLocal.length} pending local cases in memory and syncing to Firestore...`);
+              for (const pending of pendingLocal) {
+                loadedCases.unshift(pending);
+                if (db) {
+                  setDoc(doc(db, 'aduan', pending.id), cleanForFirestore(pending), { merge: true }).catch((err) => {
+                    console.warn('Pending case auto-sync to Firestore error:', err);
+                  });
+                }
+              }
+            }
 
             // Maintain order by updatedAt descending
             loadedCases.sort((a, b) => new Date(b.updatedAt || 0).getTime() - new Date(a.updatedAt || 0).getTime());
@@ -257,9 +305,16 @@ class AduanService {
               this.addDiagnosticLog('warn', "onSnapshot('aduan'): Firestore DB unseeded. First-time seeding...");
               await this.seedAllLocalToFirebase();
             } else {
-              this.cases = [];
-              this.notify();
-              this.addDiagnosticLog('info', "onSnapshot('aduan'): Collection is empty (documents deleted).");
+              if (this.cases.length > 0) {
+                this.addDiagnosticLog('warn', "Firestore aduan collection returned empty, preserving and syncing local cases...");
+                for (const c of this.cases) {
+                  setDoc(doc(db, 'aduan', c.id), cleanForFirestore(c), { merge: true }).catch(() => {});
+                }
+              } else {
+                this.cases = [];
+                this.notify();
+                this.addDiagnosticLog('info', "onSnapshot('aduan'): Collection is empty (documents deleted).");
+              }
             }
           }
         },
@@ -324,15 +379,15 @@ class AduanService {
       await markSystemAsSeeded();
       // Seed Cases
       for (const c of this.cases) {
-        await setDoc(doc(db, 'aduan', c.id), c);
+        await setDoc(doc(db, 'aduan', c.id), cleanForFirestore(c));
       }
       // Seed Workspaces
       for (const w of this.workspaces) {
-        await setDoc(doc(db, 'workspaces', w.id), w);
+        await setDoc(doc(db, 'workspaces', w.id), cleanForFirestore(w));
       }
       // Seed Logs
       for (const l of this.activityLogs) {
-        await setDoc(doc(db, 'activity_logs', l.id), l);
+        await setDoc(doc(db, 'activity_logs', l.id), cleanForFirestore(l));
       }
       // Seed Users
       await syncAllUsersToSupabase();
@@ -452,15 +507,18 @@ class AduanService {
       updatedAt: new Date().toISOString(),
     });
 
-    this.cases = [created, ...this.cases];
+    this.cases = [created, ...this.cases.filter(c => c.id !== created.id)];
     this.addLog(created.id, created.noRujukan, `Kes aduan baharu didaftarkan: "${created.namaPengadu}" [${created.sumberAduan}]`, 'Sarah Adams', 'aduan_created');
     this.notify();
 
     if (db) {
       try {
-        await setDoc(doc(db, 'aduan', created.id), created);
-      } catch (e) {
+        const payload = cleanForFirestore(created);
+        await setDoc(doc(db, 'aduan', created.id), payload);
+        this.addDiagnosticLog('success', `Aduan [${created.noRujukan}] berjaya disimpan ke Firestore.`);
+      } catch (e: any) {
         console.error('Failed to sync new case to Firebase:', e);
+        this.addDiagnosticLog('error', `Gagal simpan aduan [${created.noRujukan}] ke Firestore: ${e?.message || e}`);
       }
     }
 
@@ -487,9 +545,12 @@ class AduanService {
 
     if (db) {
       try {
-        await setDoc(doc(db, 'aduan', merged.id), merged, { merge: true });
-      } catch (e) {
+        const payload = cleanForFirestore(merged);
+        await setDoc(doc(db, 'aduan', merged.id), payload, { merge: true });
+        this.addDiagnosticLog('success', `Kemaskini aduan [${merged.noRujukan}] berjaya disimpan ke Firestore.`);
+      } catch (e: any) {
         console.error('Failed to sync updated case to Firebase:', e);
+        this.addDiagnosticLog('error', `Gagal simpan kemaskini aduan [${merged.noRujukan}] ke Firestore: ${e?.message || e}`);
       }
     }
 
@@ -517,7 +578,8 @@ class AduanService {
 
     if (db) {
       try {
-        await setDoc(doc(db, 'aduan', id), updatedCase, { merge: true });
+        const payload = cleanForFirestore(updatedCase);
+        await setDoc(doc(db, 'aduan', id), payload, { merge: true });
       } catch (e) {
         console.error('Failed to sync status update to Firebase:', e);
       }
@@ -566,7 +628,8 @@ class AduanService {
 
     if (db) {
       try {
-        await setDoc(doc(db, 'aduan', aduanId), updatedCase, { merge: true });
+        const payload = cleanForFirestore(updatedCase);
+        await setDoc(doc(db, 'aduan', aduanId), payload, { merge: true });
       } catch (e) {
         console.error('Failed to sync note to Firebase:', e);
       }
@@ -589,7 +652,8 @@ class AduanService {
 
     if (db) {
       try {
-        await setDoc(doc(db, 'workspaces', newWs.id), newWs);
+        const payload = cleanForFirestore(newWs);
+        await setDoc(doc(db, 'workspaces', newWs.id), payload);
       } catch (e) {
         console.error('Failed to create workspace in Firebase:', e);
       }

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   X,
   PlusCircle,
@@ -61,9 +61,29 @@ export const NewAduanModal: React.FC<NewAduanModalProps> = ({
   const [syorBantuan, setSyorBantuan] = useState<SyorBantuan>('Tiada');
 
   // Secondary/compatibility fields
-  const [workspaceId, setWorkspaceId] = useState(currentWorkspaceId);
+  const [workspaceId, setWorkspaceId] = useState(currentWorkspaceId && currentWorkspaceId !== 'all' ? currentWorkspaceId : 'ws-integriti');
   const [kategori, setKategori] = useState<AduanCategory>('Infrastruktur & Bangunan');
   const [prioriti, setPrioriti] = useState<AduanPriority>('Sederhana');
+
+  // Reset form when modal opens or active workspace changes
+  useEffect(() => {
+    if (isOpen) {
+      const activeWs = currentWorkspaceId && currentWorkspaceId !== 'all' ? currentWorkspaceId : 'ws-integriti';
+      setWorkspaceId(activeWs);
+      setNoRujukan(`ADV-2026-${Math.floor(100 + Math.random() * 900)}`);
+      setNamaPengadu('');
+      setTelefonPengadu('');
+      setAlamat('');
+      setCatatanKes('');
+      setStatusAduan('Belum Selesai');
+      setGambarSiasatan([]);
+      setTindakan('Belum Di Proses');
+      setSyorBantuan('Tiada');
+      setSumberAduan('Aduan Awam');
+      setErrors({});
+      setIsSubmitting(false);
+    }
+  }, [isOpen, currentWorkspaceId]);
 
   // UI state
   const [isCameraOpen, setIsCameraOpen] = useState(false);
