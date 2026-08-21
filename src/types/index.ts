@@ -192,11 +192,41 @@ export const ALL_SYSTEM_VIEWS = [
   { id: 'aduan', label: 'Senarai Aduan', category: 'Utama' },
   { id: 'laporan_aduan', label: 'Laporan Aduan', category: 'Utama' },
   { id: 'kanban', label: 'Paparan Aduan (Kanban)', category: 'Utama' },
+  { id: 'tasks', label: 'Pengurusan Task (Task Management)', category: 'Utama' },
   { id: 'templates', label: 'Format / Template Catatan', category: 'Utama' },
   { id: 'linkhub', label: 'Linkhub Pautan Rujukan', category: 'Rujukan' },
   { id: 'admin', label: 'Pentadbiran & Audit User (Admin)', category: 'Sistem' },
   { id: 'settings', label: 'Tetapan Akaun', category: 'Sistem' },
 ];
+
+export type TaskStatus = 'Dalam Proses' | 'Batal' | 'Selesai';
+export type TaskDurationChoice = 'Ada' | 'Tiada';
+export type TaskDurationPeriod = 
+  | '1 Hari' 
+  | '2 Hari' 
+  | '3 Hari' 
+  | '4 Hari' 
+  | '5 Hari' 
+  | '1 Minggu' 
+  | '2 Minggu' 
+  | '3 Minggu' 
+  | '1 Bulan' 
+  | '2 Bulan';
+
+export interface TaskItem {
+  id: string;
+  namaTask: string; // 1. Nama task
+  adaTempoh: TaskDurationChoice; // 2. Ada Tempoh (Pilihan: Ada, Tiada)
+  tempoh?: TaskDurationPeriod; // Pilihan tempoh jika Ada (1 Hari, 2 Hari, ...)
+  status: TaskStatus; // 3. Status (Dalam Proses, Batal, Selesai)
+  keterangan: string; // 4. Keterangan Berkenaan Task
+  catatan?: string; // 5. Catatan
+  tarikhDicipta: string;
+  tarikhKemaskini: string;
+  createdBy?: string;
+  creatorAvatar?: string;
+  workspaceId?: string;
+}
 
 export type ProgramCategory = 'SJK' | 'Kemaskini' | 'Lain-lain';
 export type ProgramStatus = 'Diteruskan' | 'Batal';

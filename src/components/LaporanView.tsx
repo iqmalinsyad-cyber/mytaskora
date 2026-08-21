@@ -16,6 +16,7 @@ import {
 } from 'lucide-react';
 import { AduanCase } from '../types';
 import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, CartesianGrid } from 'recharts';
+import { printAduanCasesReport } from '../utils/printUtils';
 
 interface LaporanViewProps {
   cases: AduanCase[];
@@ -49,8 +50,13 @@ export const LaporanView: React.FC<LaporanViewProps> = ({ cases, workspaceName }
     count,
   }));
 
-  const handlePrint = () => {
-    window.print();
+  const handlePrint = async () => {
+    try {
+      await printAduanCasesReport(filteredCases, workspaceName);
+    } catch (e) {
+      console.error('Print error:', e);
+      window.print();
+    }
   };
 
   const handleExportCSV = () => {

@@ -18,7 +18,11 @@ import {
   HelpCircle,
   FileText,
   Sparkles,
+  FileSpreadsheet,
+  Printer,
+  Download
 } from 'lucide-react';
+import { AduanReportModal } from './AduanReportModal';
 import {
   AduanCase,
   AduanStatus,
@@ -53,6 +57,7 @@ export const AduanList: React.FC<AduanListProps> = ({
 }) => {
   const [activeTab, setActiveTab] = useState<string>(filters.status || 'all');
   const [caseToDeleteConfirm, setCaseToDeleteConfirm] = useState<{ id: string; noRujukan: string; namaPengadu: string } | null>(null);
+  const [isReportModalOpen, setIsReportModalOpen] = useState(false);
 
   useEffect(() => {
     setActiveTab(filters.status || 'all');
@@ -217,14 +222,26 @@ export const AduanList: React.FC<AduanListProps> = ({
           </p>
         </div>
 
-        <button
-          type="button"
-          onClick={onOpenNewAduanModal}
-          className="px-4 py-2.5 rounded-2xl bg-indigo-600 hover:bg-indigo-700 active:scale-98 text-white text-xs font-extrabold shadow-lg shadow-indigo-600/30 flex items-center gap-2 self-start sm:self-auto transition-all"
-        >
-          <Plus className="w-4 h-4 text-white" />
-          <span>Daftar Aduan Baharu</span>
-        </button>
+        <div className="flex items-center gap-2.5 self-start sm:self-auto flex-wrap">
+          <button
+            type="button"
+            onClick={() => setIsReportModalOpen(true)}
+            className="px-4 py-2.5 rounded-2xl bg-white hover:bg-slate-50 text-slate-700 hover:text-indigo-700 text-xs font-extrabold border border-slate-200 hover:border-indigo-300 shadow-2xs flex items-center gap-2 transition-all cursor-pointer"
+            title="Jana Laporan Terkini Kes Aduan"
+          >
+            <FileSpreadsheet className="w-4 h-4 text-indigo-600" />
+            <span>Jana Laporan</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={onOpenNewAduanModal}
+            className="px-4 py-2.5 rounded-2xl bg-indigo-600 hover:bg-indigo-700 active:scale-98 text-white text-xs font-extrabold shadow-lg shadow-indigo-600/30 flex items-center gap-2 transition-all cursor-pointer"
+          >
+            <Plus className="w-4 h-4 text-white" />
+            <span>Daftar Aduan Baharu</span>
+          </button>
+        </div>
       </div>
 
       {/* Status Tabs Navigation */}
@@ -467,6 +484,12 @@ export const AduanList: React.FC<AduanListProps> = ({
           </div>
         </div>
       )}
+      {/* Modal Laporan Aduan Terkini */}
+      <AduanReportModal
+        isOpen={isReportModalOpen}
+        onClose={() => setIsReportModalOpen(false)}
+        cases={cases}
+      />
     </div>
   );
 };

@@ -48,6 +48,23 @@
         "workspace": { "type": "string" },
         "passwordHash": { "type": "string" }
       }
+    },
+    "tasks": {
+      "title": "Pengurusan Task",
+      "description": "Senarai pengurusan task dan tugasan",
+      "properties": {
+        "id": { "type": "string" },
+        "namaTask": { "type": "string" },
+        "adaTempoh": { "type": "string" },
+        "tempoh": { "type": "string" },
+        "status": { "type": "string" },
+        "keterangan": { "type": "string" },
+        "catatan": { "type": "string" },
+        "tarikhDicipta": { "type": "string" },
+        "tarikhKemaskini": { "type": "string" },
+        "createdBy": { "type": "string" },
+        "workspaceId": { "type": "string" }
+      }
     }
   }
 }

@@ -28,7 +28,13 @@ import { DownloadCenterView } from './components/DownloadCenterView';
 import { CalendarView } from './components/CalendarView';
 import { LaporanAduanView } from './components/LaporanAduanView';
 import { DashboardCalendarWidget } from './components/DashboardCalendarWidget';
+import { AduanDashboardWidget } from './components/AduanDashboardWidget';
+import { TaskDashboardWidget } from './components/TaskDashboardWidget';
+import { TaskModal } from './components/TaskModal';
+import { taskService } from './services/taskService';
+import { TaskItem, TaskStatus, TaskDurationChoice, TaskDurationPeriod } from './types';
 import { NotesView } from './components/NotesView';
+import { TaskManagementView } from './components/TaskManagementView';
 import { getActiveAuthSession, setAuthSession, clearAuthSession, recordLogout, setupUsersRealtimeSubscription, isViewAllowed, updateLastActivityTimestamp, isSessionExpiredDueToInactivity } from './lib/auth';
 import { BookOpen, Users, Settings, ShieldAlert, Sparkles, Building2 } from 'lucide-react';
 
@@ -157,6 +163,11 @@ export default function App() {
   const [realtimeToast, setRealtimeToast] = useState<string | null>(null);
   const [isReorderMode, setIsReorderMode] = useState(false);
 
+  // Task Management State & Modal
+  const [tasks, setTasks] = useState<TaskItem[]>(() => taskService.getTasks());
+  const [isTaskModalOpen, setIsTaskModalOpen] = useState(false);
+  const [taskToEdit, setTaskToEdit] = useState<TaskItem | null>(null);
+
   // Subscribe to Realtime Service Updates
   useEffect(() => {
     aduanService.setupFirebaseSubscription();
@@ -188,6 +199,10 @@ export default function App() {
       setWorkspaces(aduanService.getWorkspaces());
     });
 
+    const unsubscribeTasks = taskService.subscribe((updatedTasks) => {
+      setTasks([...updatedTasks]);
+    });
+
     const handleVisibilityChange = () => {
       if (document.visibilityState === 'visible') {
         aduanService.fetchFromSupabase();
@@ -199,9 +214,56 @@ export default function App() {
     return () => {
       if (unsubscribeUsers) unsubscribeUsers();
       unsubscribeCases();
+      unsubscribeTasks();
       document.removeEventListener('visibilitychange', handleVisibilityChange);
     };
   }, []);
+
+  // Handler for saving tasks
+  const handleSaveTask = async (taskData: {
+    id?: string;
+    namaTask: string;
+    adaTempoh: TaskDurationChoice;
+    tempoh?: TaskDurationPeriod;
+    status: TaskStatus;
+    keterangan: string;
+    catatan?: string;
+    workspaceId?: string;
+    createdBy?: string;
+    creatorAvatar?: string;
+  }) => {
+    setIsTaskModalOpen(false);
+    setTaskToEdit(null);
+    try {
+      if (taskData.id) {
+        await taskService.updateTask(taskData.id, taskData);
+        setRealtimeToast(`Task "${taskData.namaTask}" berjaya dikemaskini & disinkronkan ke Firebase!`);
+      } else {
+        await taskService.addTask({
+          namaTask: taskData.namaTask,
+          adaTempoh: taskData.adaTempoh,
+          tempoh: taskData.tempoh,
+          status: taskData.status,
+          keterangan: taskData.keterangan,
+          catatan: taskData.catatan,
+          workspaceId: taskData.workspaceId || currentWorkspace.id,
+          createdBy: taskData.createdBy || currentUser.name,
+          creatorAvatar: taskData.creatorAvatar || currentUser.avatar,
+        });
+        setRealtimeToast(`Task baharu "${taskData.namaTask}" berjaya dicipta & disinkronkan ke Firebase!`);
+      }
+      setTimeout(() => setRealtimeToast(null), 4000);
+    } catch (err) {
+      console.error('Error saving task:', err);
+      setRealtimeToast('Ralat semasa menyimpan task.');
+      setTimeout(() => setRealtimeToast(null), 4000);
+    }
+  };
+
+  const handleSelectTaskFromSearch = (task: TaskItem) => {
+    setTaskToEdit(task);
+    setIsTaskModalOpen(true);
+  };
 
   // Filter cases for current workspace
   const workspaceCases = cases.filter(c => c.workspaceId === currentWorkspace.id || currentWorkspace.id === 'all');
@@ -413,17 +475,31 @@ export default function App() {
               {/* Upcoming Programs Calendar Widget */}
               <DashboardCalendarWidget onOpenCalendar={() => setActiveTab('calendar')} />
 
-              {/* Quick Table View for Active Complaints */}
-              <AduanList
-                cases={aduanService.getCases({ ...filters, workspaceId: currentWorkspace.id })}
-                filters={filters}
-                setFilters={setFilters}
+              {/* Dashboard Kes Aduan: Status Aduan, Tindakan, dan Prestasi SLA */}
+              <AduanDashboardWidget
+                cases={workspaceCases}
                 onSelectCase={(c) => setSelectedCase(c)}
-                onEditCase={(c) => setCaseToEdit(c)}
-                onUpdateStatus={handleUpdateStatus}
-                onOpenNewAduanModal={() => setIsNewAduanOpen(true)}
-                onOpenNoteModal={(c) => setSelectedCase(c)}
-                onDeleteCase={handleDeleteCase}
+                onFilterByStatus={(status) => {
+                  setFilters((prev) => ({ ...prev, status }));
+                }}
+                onFilterByTindakan={(tindakan) => {
+                  setFilters((prev) => ({ ...prev, tindakan }));
+                }}
+                onOpenAduanList={() => setActiveTab('aduan')}
+              />
+
+              {/* Dashboard Pengurusan Task: Status Task, Jumlah Task & Senarai Terkini */}
+              <TaskDashboardWidget
+                currentUser={currentUser}
+                onOpenTaskManagement={() => setActiveTab('tasks')}
+                onOpenNewTaskModal={() => {
+                  setTaskToEdit(null);
+                  setIsTaskModalOpen(true);
+                }}
+                onSelectTask={(task) => {
+                  setTaskToEdit(task);
+                  setIsTaskModalOpen(true);
+                }}
               />
             </>
           )}
@@ -474,6 +550,10 @@ export default function App() {
 
           {activeTab === 'notes' && (
             <NotesView currentUser={currentUser} />
+          )}
+
+          {activeTab === 'tasks' && (
+            <TaskManagementView currentUser={currentUser} />
           )}
 
           {activeTab === 'calendar' && (
@@ -576,7 +656,21 @@ export default function App() {
         isOpen={isGlobalSearchOpen}
         onClose={() => setIsGlobalSearchOpen(false)}
         cases={workspaceCases}
+        tasks={tasks}
         onSelectCase={(c) => setSelectedCase(c)}
+        onSelectTask={handleSelectTaskFromSearch}
+      />
+
+      <TaskModal
+        isOpen={isTaskModalOpen}
+        onClose={() => {
+          setIsTaskModalOpen(false);
+          setTaskToEdit(null);
+        }}
+        taskToEdit={taskToEdit}
+        currentUser={currentUser}
+        currentWorkspaceId={currentWorkspace.id}
+        onSaveTask={handleSaveTask}
       />
 
       <QuickActionModal
@@ -585,6 +679,7 @@ export default function App() {
         onOpenNewAduan={() => setIsNewAduanOpen(true)}
         onOpenCatatanFormat={() => setActiveTab('templates')}
         onOpenSupabase={() => setIsSupabaseOpen(true)}
+        onOpenTasks={() => setActiveTab('tasks')}
       />
 
       <LoginModal

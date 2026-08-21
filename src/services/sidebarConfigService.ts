@@ -9,6 +9,7 @@ export const DEFAULT_OVERVIEW_NAV = [
   'aduan',
   'laporan_aduan',
   'kanban',
+  'tasks',
   'templates',
 ];
 

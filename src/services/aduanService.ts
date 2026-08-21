@@ -5,6 +5,7 @@ import { collection, onSnapshot, doc, setDoc, deleteDoc, getDocs } from 'firebas
 import { syncAllUsersToSupabase } from '../lib/auth';
 
 const ADUAN_STORAGE_KEY = 'aduan_workspace_cases_v3';
+const DELETED_CASES_KEY = 'aduan_deleted_cases_ids_v1';
 const WORKSPACE_STORAGE_KEY = 'aduan_workspace_list_v2';
 const LOGS_STORAGE_KEY = 'aduan_workspace_logs_v2';
 
@@ -86,6 +87,7 @@ export function sanitizeAduanCase(raw: any): AduanCase {
 
 class AduanService {
   private cases: AduanCase[] = [];
+  private deletedCaseIds: Set<string> = new Set();
   private workspaces: Workspace[] = [];
   private activityLogs: ActivityLog[] = [];
   private diagnosticLogs: DiagnosticLog[] = [];
@@ -95,8 +97,31 @@ class AduanService {
   private isFirebaseSubscribed = false;
 
   constructor() {
+    this.initDeletedIds();
     this.initData();
     this.setupFirebaseSubscription();
+  }
+
+  private initDeletedIds() {
+    try {
+      const saved = localStorage.getItem(DELETED_CASES_KEY);
+      if (saved) {
+        const arr = JSON.parse(saved);
+        if (Array.isArray(arr)) {
+          this.deletedCaseIds = new Set(arr);
+        }
+      }
+    } catch (e) {
+      console.error('Error loading deleted case IDs:', e);
+    }
+  }
+
+  private saveDeletedIds() {
+    try {
+      localStorage.setItem(DELETED_CASES_KEY, JSON.stringify(Array.from(this.deletedCaseIds)));
+    } catch (e) {
+      console.error('Error saving deleted case IDs:', e);
+    }
   }
 
   private initData() {
@@ -104,9 +129,11 @@ class AduanService {
       const savedCases = localStorage.getItem(ADUAN_STORAGE_KEY) || localStorage.getItem('aduan_workspace_cases_v2');
       if (savedCases) {
         const parsed = JSON.parse(savedCases);
-        this.cases = Array.isArray(parsed) ? parsed.map(sanitizeAduanCase) : INITIAL_ADUAN_CASES;
+        this.cases = Array.isArray(parsed)
+          ? parsed.map(sanitizeAduanCase).filter((c) => !this.deletedCaseIds.has(c.id))
+          : INITIAL_ADUAN_CASES.map(sanitizeAduanCase).filter((c) => !this.deletedCaseIds.has(c.id));
       } else {
-        this.cases = INITIAL_ADUAN_CASES.map(sanitizeAduanCase);
+        this.cases = INITIAL_ADUAN_CASES.map(sanitizeAduanCase).filter((c) => !this.deletedCaseIds.has(c.id));
         this.saveCasesToLocal();
       }
 
@@ -266,15 +293,22 @@ class AduanService {
             const loadedIds = new Set<string>();
 
             snapshot.forEach((docSnap) => {
+              if (this.deletedCaseIds.has(docSnap.id)) {
+                if (db) {
+                  deleteDoc(doc(db, 'aduan', docSnap.id)).catch(() => {});
+                }
+                return;
+              }
               const data = docSnap.data();
               const c = sanitizeAduanCase(data);
               loadedCases.push(c);
               loadedIds.add(c.id);
             });
 
-            // Preserve local cases created/updated in the last 2 minutes if not yet in snapshot!
+            // Preserve local cases created/updated in the last 2 minutes if not yet in snapshot and not deleted!
             const now = Date.now();
             const pendingLocal = this.cases.filter((c) => {
+              if (this.deletedCaseIds.has(c.id)) return false;
               if (loadedIds.has(c.id)) return false;
               const age = now - new Date(c.updatedAt || c.tarikhAduan || 0).getTime();
               return age < 120000;
@@ -507,6 +541,11 @@ class AduanService {
       updatedAt: new Date().toISOString(),
     });
 
+    if (this.deletedCaseIds.has(created.id)) {
+      this.deletedCaseIds.delete(created.id);
+      this.saveDeletedIds();
+    }
+
     this.cases = [created, ...this.cases.filter(c => c.id !== created.id)];
     this.addLog(created.id, created.noRujukan, `Kes aduan baharu didaftarkan: "${created.namaPengadu}" [${created.sumberAduan}]`, 'Sarah Adams', 'aduan_created');
     this.notify();
@@ -590,6 +629,9 @@ class AduanService {
     const targetCase = this.cases.find(c => c.id === id);
     if (!targetCase) return;
 
+    this.deletedCaseIds.add(id);
+    this.saveDeletedIds();
+
     this.cases = this.cases.filter(c => c.id !== id);
     this.addLog(id, targetCase.noRujukan, `Kes aduan [${targetCase.noRujukan}] telah dipadamkan secara kekal.`, authorName, 'status_change');
     this.notify();
@@ -597,8 +639,10 @@ class AduanService {
     if (db) {
       try {
         await deleteDoc(doc(db, 'aduan', id));
-      } catch (e) {
+        this.addDiagnosticLog('info', `Aduan [${targetCase.noRujukan}] berjaya dipadam secara kekal dari Firestore.`);
+      } catch (e: any) {
         console.error('Failed to delete case from Firebase:', e);
+        this.addDiagnosticLog('error', `Gagal padam aduan [${targetCase.noRujukan}] dari Firestore: ${e?.message || e}`);
       }
     }
   }

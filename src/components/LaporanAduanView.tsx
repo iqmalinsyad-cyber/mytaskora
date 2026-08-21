@@ -23,6 +23,7 @@ import {
 } from 'lucide-react';
 import { AduanCase, UserProfile, LaporanAduanItem } from '../types';
 import { laporanAduanService } from '../services/laporanAduanService';
+import { printSiasatanReport } from '../utils/printUtils';
 
 interface LaporanAduanViewProps {
   currentUser?: UserProfile | null;
@@ -387,56 +388,12 @@ KOAD Hulu Langat
   };
 
   // Trigger Printable window / document
-  const triggerSystemPrint = () => {
+  const triggerSystemPrint = async () => {
     const reportText = generateFormattedReportText();
-    const printWindow = window.open('', '_blank');
-    if (printWindow) {
-      printWindow.document.write(`
-        <!DOCTYPE html>
-        <html>
-          <head>
-            <title>Laporan Siasatan - ${nama || 'Daerah Hulu Langat'}</title>
-            <style>
-              @page { size: A4; margin: 20mm; }
-              body {
-                font-family: Arial, sans-serif;
-                font-size: 13px;
-                line-height: 1.6;
-                color: #000;
-                white-space: pre-wrap;
-                word-wrap: break-word;
-                padding: 20px;
-              }
-              .header {
-                text-align: center;
-                font-weight: bold;
-                font-size: 16px;
-                margin-bottom: 20px;
-                padding-bottom: 10px;
-                border-bottom: 2px solid #000;
-              }
-            </style>
-          </head>
-          <body>
-            <div class="header">
-              LEMBAGA ZAKAT SELANGOR (LZS) - DAERAH HULU LANGAT<br/>
-              LAPORAN SIASATAN KES ADUAN
-            </div>
-            <div>${reportText.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')}</div>
-          </body>
-        </html>
-      `);
-      printWindow.document.close();
-      printWindow.focus();
-      setTimeout(() => {
-        try {
-          printWindow.print();
-        } catch (e) {
-          console.error('Window print error:', e);
-          window.print();
-        }
-      }, 300);
-    } else {
+    try {
+      await printSiasatanReport(nama || 'Daerah Hulu Langat', reportText);
+    } catch (e) {
+      console.error('Print error, fallback to window.print():', e);
       window.print();
     }
   };

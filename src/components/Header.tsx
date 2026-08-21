@@ -93,15 +93,23 @@ export const Header: React.FC<HeaderProps> = ({
       <div className="flex-1 max-w-xl mx-2 sm:mx-4 md:mx-6 hidden sm:block">
         <button
           onClick={onOpenGlobalSearch}
-          className="w-full flex items-center justify-between px-3.5 py-2 rounded-lg bg-slate-50 border border-slate-200 text-slate-400 hover:border-slate-300 hover:bg-slate-100/50 transition-all text-xs"
+          className="w-full flex items-center justify-between px-3.5 py-2 rounded-xl bg-slate-50 hover:bg-white border border-slate-200 hover:border-indigo-300 text-slate-500 hover:shadow-xs transition-all text-xs group cursor-pointer"
+          title="Cari semua rekod Kes Aduan dan Pengurusan Task (⌘K)"
         >
           <div className="flex items-center gap-2.5 truncate">
-            <Search className="w-4 h-4 text-slate-400 shrink-0" />
-            <span className="truncate">Cari no. rujukan aduan, nama pengadu, tajuk...</span>
+            <Search className="w-4 h-4 text-slate-400 group-hover:text-indigo-600 transition-colors shrink-0" />
+            <span className="truncate font-medium text-slate-500 group-hover:text-slate-700">
+              Cari Kes Aduan, Pengadu, Pengurusan Task...
+            </span>
           </div>
-          <div className="hidden md:flex items-center gap-1 bg-white px-2 py-0.5 rounded border border-slate-200 text-[10px] font-semibold text-slate-500 shadow-2xs">
-            <span>⌘</span>
-            <span>K</span>
+          <div className="flex items-center gap-1.5 shrink-0">
+            <span className="hidden lg:inline text-[9px] font-extrabold uppercase px-1.5 py-0.5 rounded bg-indigo-50 text-indigo-700 border border-indigo-100">
+              Aduan & Task
+            </span>
+            <div className="hidden md:flex items-center gap-1 bg-white px-2 py-0.5 rounded-md border border-slate-200 text-[10px] font-bold text-slate-500 shadow-2xs">
+              <span>⌘</span>
+              <span>K</span>
+            </div>
           </div>
         </button>
       </div>

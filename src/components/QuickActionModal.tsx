@@ -1,5 +1,5 @@
 import React from 'react';
-import { X, PlusCircle, FileText, Database, FileSpreadsheet, ChevronRight, Sparkles } from 'lucide-react';
+import { X, PlusCircle, FileText, Database, CheckSquare, ChevronRight, Sparkles } from 'lucide-react';
 
 interface QuickActionModalProps {
   isOpen: boolean;
@@ -7,6 +7,7 @@ interface QuickActionModalProps {
   onOpenNewAduan: () => void;
   onOpenCatatanFormat: () => void;
   onOpenSupabase: () => void;
+  onOpenTasks?: () => void;
 }
 
 export const QuickActionModal: React.FC<QuickActionModalProps> = ({
@@ -15,6 +16,7 @@ export const QuickActionModal: React.FC<QuickActionModalProps> = ({
   onOpenNewAduan,
   onOpenCatatanFormat,
   onOpenSupabase,
+  onOpenTasks,
 }) => {
   if (!isOpen) return null;
 
@@ -24,6 +26,12 @@ export const QuickActionModal: React.FC<QuickActionModalProps> = ({
       desc: 'Daftar kes aduan awam atau kerosakan fasiliti baharu',
       icon: PlusCircle,
       action: () => { onClose(); onOpenNewAduan(); }
+    },
+    {
+      title: 'Pengurusan Task & Tindakan',
+      desc: 'Cipta dan urus status task tugasan harian',
+      icon: CheckSquare,
+      action: () => { onClose(); if (onOpenTasks) onOpenTasks(); }
     },
     {
       title: 'Format / Template Catatan',

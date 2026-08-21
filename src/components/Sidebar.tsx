@@ -27,7 +27,8 @@ import {
   SlidersHorizontal,
   RotateCcw,
   Download,
-  StickyNote
+  StickyNote,
+  CheckSquare
 } from 'lucide-react';
 import { Workspace, UserProfile } from '../types';
 import { SystemLogo } from './SystemLogo';
@@ -108,6 +109,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
     aduan: { id: 'aduan', label: 'Kes Aduan', icon: ShieldAlert },
     laporan_aduan: { id: 'laporan_aduan', label: 'Laporan Aduan', icon: ClipboardList },
     kanban: { id: 'kanban', label: 'Paparan Aduan', icon: Kanban },
+    tasks: { id: 'tasks', label: 'Pengurusan Task', icon: CheckSquare, badge: 'Baharu' },
     templates: { id: 'templates', label: 'Format / Template Catatan', icon: FileText },
     linkhub: { id: 'linkhub', label: 'Linkhub', icon: FolderGit2, badge: 'Baharu' },
     downloads: { id: 'downloads', label: 'Download / Tools', icon: Download, badge: 'Baharu' },
