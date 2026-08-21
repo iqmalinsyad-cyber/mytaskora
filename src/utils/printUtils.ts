@@ -2,6 +2,8 @@
  * Utility for robust, cross-browser and iframe-safe printing and PDF generation
  */
 
+import { calculateCaseSLA, calculateSlaPerformanceSummary } from './slaUtils';
+
 interface PrintDocumentOptions {
   title: string;
   bodyHtml: string;
@@ -184,6 +186,33 @@ export const printDocument = ({ title, bodyHtml, customStyles = '' }: PrintDocum
               color: #9f1239;
               border: 1px solid #fecdd3;
             }
+            .badge-sla-48 {
+              background: #dcfce7;
+              color: #166534;
+              border: 1px solid #86efac;
+            }
+            .badge-sla-72 {
+              background: #dbeafe;
+              color: #1e40af;
+              border: 1px solid #93c5fd;
+            }
+            .badge-sla-96 {
+              background: #fef3c7;
+              color: #92400e;
+              border: 1px solid #fde68a;
+            }
+            .badge-sla-over {
+              background: #ffe4e6;
+              color: #9f1239;
+              border: 1px solid #fda4af;
+              font-weight: 900;
+            }
+            .badge-sumber {
+              background: #eef2ff;
+              color: #3730a3;
+              border: 1px solid #c7d2fe;
+              font-weight: 700;
+            }
             .footer-info {
               margin-top: 20px;
               padding-top: 10px;
@@ -251,6 +280,9 @@ export const printAduanCasesReport = (cases: any[], workspaceName: string = 'Sem
   const kivTindakanCount = cases.filter((c) => c.tindakan === 'KIV').length;
   const belumDiprosesCount = cases.filter((c) => c.tindakan === 'Belum Di Proses' || !c.tindakan).length;
 
+  // SLA Performance Calculation
+  const slaSummary = calculateSlaPerformanceSummary(cases);
+
   const completionRate = total > 0 ? Math.round((selesaiCount / total) * 100) : 0;
   const reportDate = new Date().toLocaleDateString('ms-MY', {
     day: 'numeric',
@@ -267,6 +299,8 @@ export const printAduanCasesReport = (cases: any[], workspaceName: string = 'Sem
       else if (c.status === 'Dalam Siasatan') badgeClass = 'badge-proses';
       else if (c.status === 'Ditolak') badgeClass = 'badge-batal';
 
+      const sla = calculateCaseSLA(c);
+
       return `
         <tr>
           <td style="text-align: center; font-family: monospace;">${idx + 1}</td>
@@ -277,11 +311,16 @@ export const printAduanCasesReport = (cases: any[], workspaceName: string = 'Sem
             ${c.alamat ? `<div style="color: #475569; font-size: 9px; margin-top: 2px;">${c.alamat}</div>` : ''}
           </td>
           <td>
-            <div>${c.kategori || '-'}</div>
-            <span style="font-size: 8px; color: #475569; background: #e2e8f0; padding: 1px 4px; border-radius: 3px;">${c.sumberAduan || 'Awam'}</span>
+            <span class="badge badge-sumber">${c.sumberAduan || 'Aduan Awam'}</span>
           </td>
           <td><span class="badge ${badgeClass}">${c.status || '-'}</span></td>
           <td><strong>${c.tindakan || 'Belum Di Proses'}</strong></td>
+          <td>
+            <span class="badge ${sla.badgeClass}">${sla.tierLabel}</span>
+            <div style="font-size: 8.5px; color: ${sla.isCompliant ? '#15803d' : '#be123c'}; font-weight: 700; margin-top: 2px;">
+              ${sla.elapsedHours} Jam ${sla.isCompleted ? '(Selesai)' : '(Aktif)'}
+            </div>
+          </td>
           <td style="white-space: nowrap;">${c.tarikhAduan ? new Date(c.tarikhAduan).toLocaleDateString('ms-MY') : '-'}</td>
         </tr>
       `;
@@ -300,6 +339,7 @@ export const printAduanCasesReport = (cases: any[], workspaceName: string = 'Sem
       </div>
     </div>
 
+    <!-- Status Overview -->
     <div class="kpi-grid">
       <div class="kpi-card">
         <div class="kpi-label">Jumlah Kes</div>
@@ -323,21 +363,51 @@ export const printAduanCasesReport = (cases: any[], workspaceName: string = 'Sem
       </div>
     </div>
 
+    <!-- PRESTASI SLA ADUAN SECTION -->
+    <div class="section-title" style="border-left-color: #059669; display: flex; justify-content: space-between; align-items: center;">
+      <span>Prestasi SLA Aduan (Kadar Pematuhan: ${slaSummary.complianceRate}%)</span>
+      <span style="font-size: 9px; color: #475569; font-weight: normal; text-transform: none;">Piawaian Maksimum: ≤ 96 Jam</span>
+    </div>
+
+    <div class="kpi-grid" style="grid-template-columns: repeat(4, 1fr); margin-bottom: 16px;">
+      <div class="kpi-card" style="background: #f0fdf4; border-color: #86efac;">
+        <div class="kpi-label" style="color: #166534;">1. &lt; 48 Jam (STRETCH)</div>
+        <div class="kpi-value" style="color: #166534;">${slaSummary.under48hCount}</div>
+        <div class="kpi-desc" style="color: #15803d; font-weight: bold;">STRETCH (${total > 0 ? Math.round((slaSummary.under48hCount/total)*100) : 0}%)</div>
+      </div>
+      <div class="kpi-card" style="background: #eff6ff; border-color: #93c5fd;">
+        <div class="kpi-label" style="color: #1e40af;">2. &lt; 72 Jam (TARGET)</div>
+        <div class="kpi-value" style="color: #1e40af;">${slaSummary.under72hCount}</div>
+        <div class="kpi-desc" style="color: #1d4ed8; font-weight: bold;">TARGET (${total > 0 ? Math.round((slaSummary.under72hCount/total)*100) : 0}%)</div>
+      </div>
+      <div class="kpi-card" style="background: #fefce8; border-color: #fde68a;">
+        <div class="kpi-label" style="color: #854d0e;">3. &lt; 96 Jam (THRESHOLD)</div>
+        <div class="kpi-value" style="color: #854d0e;">${slaSummary.under96hCount}</div>
+        <div class="kpi-desc" style="color: #a16207; font-weight: bold;">THRESHOLD (${total > 0 ? Math.round((slaSummary.under96hCount/total)*100) : 0}%)</div>
+      </div>
+      <div class="kpi-card" style="background: #fff1f2; border-color: #fecdd3;">
+        <div class="kpi-label" style="color: #9f1239;">4. &gt; 96 Jam (Tidak Patuh)</div>
+        <div class="kpi-value" style="color: #9f1239;">${slaSummary.over96hCount}</div>
+        <div class="kpi-desc" style="color: #be123c; font-weight: bold;">Tidak Patuh SLA (${total > 0 ? Math.round((slaSummary.over96hCount/total)*100) : 0}%)</div>
+      </div>
+    </div>
+
     <div class="section-title">Senarai Terperinci Kes Aduan (${total})</div>
     <table>
       <thead>
         <tr>
-          <th style="width: 30px; text-align: center;">Bil</th>
-          <th style="width: 100px;">No Rujukan</th>
-          <th>Nama Pengadu & Maklumat</th>
-          <th style="width: 120px;">Kategori & Sumber</th>
-          <th style="width: 95px;">Status</th>
-          <th style="width: 105px;">Tindakan</th>
-          <th style="width: 75px;">Tarikh</th>
+          <th style="width: 25px; text-align: center;">Bil</th>
+          <th style="width: 90px;">No Rujukan</th>
+          <th>NAMA</th>
+          <th style="width: 100px;">Sumber Aduan</th>
+          <th style="width: 85px;">Status</th>
+          <th style="width: 95px;">Tindakan</th>
+          <th style="width: 110px;">Prestasi SLA</th>
+          <th style="width: 70px;">Tarikh</th>
         </tr>
       </thead>
       <tbody>
-        ${cases.length === 0 ? '<tr><td colspan="7" style="text-align: center; padding: 20px; color: #94a3b8;">Tiada rekod aduan untuk dicetak.</td></tr>' : tableRows}
+        ${cases.length === 0 ? '<tr><td colspan="8" style="text-align: center; padding: 20px; color: #94a3b8;">Tiada rekod aduan untuk dicetak.</td></tr>' : tableRows}
       </tbody>
     </table>
   `;
@@ -486,3 +556,126 @@ export const printSiasatanReport = (name: string, formattedText: string) => {
     bodyHtml,
   });
 };
+
+/**
+ * Print Program / Aktiviti Agihan KPI Report (Laporan Bilangan Program / Aktiviti Agihan Yang Berjaya Dilaksanakan)
+ */
+export const printProgramAgihanReport = (
+  items: Array<{
+    id: string;
+    namaProgram: string;
+    namaPic: string;
+    lokasi: string;
+    tarikh: string;
+    catatan?: string;
+    createdBy?: string;
+  }>,
+  titleName: string = 'Bilangan Program / Aktiviti Agihan Yang Berjaya Dilaksanakan (KPI)'
+) => {
+  const reportDate = new Date().toLocaleDateString('ms-MY', {
+    day: 'numeric',
+    month: 'long',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+  });
+
+  const total = items.length;
+  const uniquePics = new Set(items.map(i => i.namaPic.trim()).filter(Boolean)).size;
+  const uniqueLocations = new Set(items.map(i => i.lokasi.trim()).filter(Boolean)).size;
+
+  const tableRows = items
+    .map(
+      (item, idx) => `
+      <tr>
+        <td style="text-align: center; font-weight: bold; color: #475569;">${idx + 1}</td>
+        <td>
+          <div style="font-weight: 700; color: #0f172a; font-size: 11px;">${item.namaProgram}</div>
+          ${item.catatan ? `<div style="font-size: 9.5px; color: #64748b; margin-top: 2px;">Catatan: ${item.catatan}</div>` : ''}
+        </td>
+        <td>
+          <span style="font-weight: 600; color: #1e293b;">${item.namaPic}</span>
+        </td>
+        <td>
+          <span style="color: #334155;">${item.lokasi}</span>
+        </td>
+        <td style="white-space: nowrap; font-weight: 600; color: #059669;">
+          ${new Date(item.tarikh).toLocaleDateString('ms-MY', {
+            day: 'numeric',
+            month: 'short',
+            year: 'numeric',
+          })}
+        </td>
+        <td>
+          <span style="font-size: 10px; color: #64748b;">${item.createdBy || 'Staf'}</span>
+        </td>
+      </tr>
+    `
+    )
+    .join('');
+
+  const bodyHtml = `
+    <div class="header-box">
+      <div>
+        <h1 class="header-title">LEMBAGA ZAKAT SELANGOR (LZS)</h1>
+        <p class="header-subtitle">DAERAH HULU LANGAT · LAPORAN PENCAPAIAN PROGRAM AGIHAN (KPI)</p>
+      </div>
+      <div style="text-align: right;">
+        <span class="meta-badge">Tarikh Cetak: ${reportDate}</span>
+      </div>
+    </div>
+
+    <div class="section-title" style="border-left-color: #059669;">
+      <span>${titleName}</span>
+    </div>
+
+    <div class="kpi-grid" style="grid-template-columns: repeat(3, 1fr); margin-bottom: 16px;">
+      <div class="kpi-card" style="background: #ecfdf5; border-color: #a7f3d0;">
+        <div class="kpi-label" style="color: #065f46;">Jumlah Program Berjaya (KPI)</div>
+        <div class="kpi-value" style="color: #047857;">${total}</div>
+        <div class="kpi-desc" style="color: #059669; font-weight: bold;">Program Telah Selesai Dilaksanakan</div>
+      </div>
+      <div class="kpi-card" style="background: #eff6ff; border-color: #bfdbfe;">
+        <div class="kpi-label" style="color: #1e40af;">Pegawai / PIC Bertanggungjawab</div>
+        <div class="kpi-value" style="color: #2563eb;">${uniquePics}</div>
+        <div class="kpi-desc" style="color: #3b82f6;">PIC Terlibat Dalam Agihan</div>
+      </div>
+      <div class="kpi-card" style="background: #f8fafc; border-color: #e2e8f0;">
+        <div class="kpi-label" style="color: #334155;">Lokasi / Kawasan Agihan</div>
+        <div class="kpi-value" style="color: #0f172a;">${uniqueLocations}</div>
+        <div class="kpi-desc" style="color: #64748b;">Kawasan Liputan Hulu Langat</div>
+      </div>
+    </div>
+
+    <div class="section-title" style="margin-top: 14px; border-left-color: #3b82f6;">
+      <span>Senarai Terperinci Program & Aktiviti Agihan (${total} Rekod)</span>
+    </div>
+
+    <table>
+      <thead>
+        <tr>
+          <th style="width: 35px; text-align: center;">Bil</th>
+          <th>Nama Program / Aktiviti</th>
+          <th style="width: 140px;">Nama PIC</th>
+          <th style="width: 160px;">Lokasi Program</th>
+          <th style="width: 110px;">Tarikh Program</th>
+          <th style="width: 90px;">Didaftarkan</th>
+        </tr>
+      </thead>
+      <tbody>
+        ${items.length === 0 ? '<tr><td colspan="6" style="text-align: center; padding: 20px; color: #94a3b8;">Tiada rekod program agihan untuk dicetak.</td></tr>' : tableRows}
+      </tbody>
+    </table>
+
+    <div style="margin-top: 24px; padding-top: 12px; border-top: 1px dashed #cbd5e1; display: flex; justify-content: space-between; font-size: 9px; color: #64748b;">
+      <span>Sistem Pengurusan Aduan & Program LZS Daerah Hulu Langat</span>
+      <span>Dokumen ini dijana secara rasmi melalui sistem</span>
+    </div>
+  `;
+
+  return printDocument({
+    title: `Laporan_Program_Agihan_KPI_${new Date().toISOString().split('T')[0]}`,
+    bodyHtml,
+  });
+};
+

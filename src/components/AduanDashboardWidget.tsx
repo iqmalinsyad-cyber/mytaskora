@@ -17,6 +17,7 @@ import {
   ClockAlert
 } from 'lucide-react';
 import { AduanCase, AduanStatus, TindakanAduan } from '../types';
+import { calculateCaseSLA, calculateSlaPerformanceSummary } from '../utils/slaUtils';
 
 interface AduanDashboardWidgetProps {
   cases: AduanCase[];
@@ -54,72 +55,24 @@ export const AduanDashboardWidget: React.FC<AduanDashboardWidgetProps> = ({
     belumDiproses: cases.filter(c => c.tindakan === 'Belum Di Proses' || !c.tindakan).length,
   };
 
-  // 3. SLA Aduan calculations
-  const now = new Date().getTime();
+  // 3. SLA Aduan calculations using SLA utils
+  const slaSummary = calculateSlaPerformanceSummary(cases);
   const casesWithSla = cases.map(c => {
-    // Determine SLA status
-    // If completed
-    if (c.status === 'Selesai') {
-      const finishTime = c.tarikhSelesai ? new Date(c.tarikhSelesai).getTime() : new Date(c.updatedAt).getTime();
-      const targetTime = c.sasaranSLA ? new Date(c.sasaranSLA).getTime() : new Date(c.tarikhAduan).getTime() + (14 * 86400000);
-      const isMet = finishTime <= targetTime;
-      return {
-        ...c,
-        slaCategory: isMet ? 'dalam_sla' : 'lebih_sla',
-        slaLabel: isMet ? 'Patuh SLA' : 'Selesai (Lebih SLA)',
-        hoursRemaining: 0,
-        isOverdue: !isMet,
-      };
-    }
-
-    // If active / open
-    const createdTime = new Date(c.tarikhAduan).getTime() || now;
-    const targetTime = c.sasaranSLA ? new Date(c.sasaranSLA).getTime() : createdTime + (14 * 86400000); // default 14 days SLA
-    const diffMs = targetTime - now;
-    const hoursRemaining = Math.round(diffMs / (1000 * 60 * 60));
-
-    if (diffMs < 0) {
-      return {
-        ...c,
-        slaCategory: 'lebih_sla',
-        slaLabel: 'Melebihi SLA',
-        hoursRemaining,
-        isOverdue: true,
-      };
-    } else if (diffMs <= 48 * 3600 * 1000) {
-      return {
-        ...c,
-        slaCategory: 'hampir_sla',
-        slaLabel: 'Menghampiri Tempoh (≤48j)',
-        hoursRemaining,
-        isOverdue: false,
-      };
-    } else {
-      return {
-        ...c,
-        slaCategory: 'dalam_sla',
-        slaLabel: 'Dalam Tempoh SLA',
-        hoursRemaining,
-        isOverdue: false,
-      };
-    }
+    const sla = calculateCaseSLA(c);
+    return {
+      ...c,
+      slaResult: sla,
+      isOverdue: !sla.isCompliant,
+    };
   });
 
-  const dalamSlaCount = casesWithSla.filter(c => c.slaCategory === 'dalam_sla').length;
-  const hampirSlaCount = casesWithSla.filter(c => c.slaCategory === 'hampir_sla').length;
-  const lebihSlaCount = casesWithSla.filter(c => c.slaCategory === 'lebih_sla').length;
+  const activeOverdueCases = casesWithSla.filter(c => c.status !== 'Selesai' && c.status !== 'Ditolak' && c.isOverdue);
+  const activeOverdueCount = activeOverdueCases.length;
 
-  const activeSlaCases = casesWithSla.filter(c => c.status !== 'Selesai' && c.status !== 'Ditolak');
-  const activeOverdueCount = activeSlaCases.filter(c => c.isOverdue).length;
-
-  // SLA Compliance Rate
-  const compliantTotal = dalamSlaCount + hampirSlaCount;
-  const slaCompliancePercent = totalCases > 0 ? Math.round((compliantTotal / totalCases) * 100) : 100;
-
-  // Filtered list for urgent SLA display
+  // Filtered list for urgent SLA display (sorted by elapsed hours descending)
   const urgentCases = casesWithSla
     .filter(c => c.status !== 'Selesai' && c.status !== 'Ditolak')
-    .sort((a, b) => a.hoursRemaining - b.hoursRemaining)
+    .sort((a, b) => b.slaResult.elapsedHours - a.slaResult.elapsedHours)
     .slice(0, 4);
 
   return (
@@ -383,60 +336,78 @@ export const AduanDashboardWidget: React.FC<AduanDashboardWidgetProps> = ({
         </div>
 
         {/* ======================================================== */}
-        {/* 3. SLA ADUAN */}
+        {/* 3. SLA ADUAN (WARNA PENUH / FULL RICH COLOR) */}
         {/* ======================================================== */}
         <div className="bg-slate-50/70 rounded-2xl p-4 border border-slate-200 flex flex-col justify-between space-y-3">
           <div>
             <div className="flex items-center justify-between mb-2">
               <div className="flex items-center gap-2">
-                <span className="w-2.5 h-2.5 rounded-full bg-rose-600"></span>
-                <h4 className="text-xs font-black uppercase tracking-wider text-slate-700">
+                <span className="w-2.5 h-2.5 rounded-full bg-rose-600 animate-pulse"></span>
+                <h4 className="text-xs font-black uppercase tracking-wider text-slate-800">
                   3. Prestasi SLA Aduan
                 </h4>
               </div>
-              <span className={`px-2 py-0.5 rounded-md text-[10px] font-black ${
-                slaCompliancePercent >= 85 ? 'bg-emerald-100 text-emerald-800' : 'bg-amber-100 text-amber-800'
+              <span className={`px-2.5 py-1 rounded-lg text-[10px] font-black shadow-xs ${
+                slaSummary.complianceRate >= 85 ? 'bg-emerald-600 text-white' : 'bg-amber-600 text-white'
               }`}>
-                {slaCompliancePercent}% Pematuhan
+                {slaSummary.complianceRate}% Pematuhan (≤96j)
               </span>
             </div>
 
-            {/* SLA 3 Pill Metrics */}
-            <div className="grid grid-cols-3 gap-2 my-2">
-              <div className="p-2.5 bg-white rounded-xl border border-emerald-200 text-center shadow-2xs">
-                <div className="text-[10px] font-bold text-slate-500">Dalam SLA</div>
-                <div className="text-base font-black text-emerald-700 font-mono">{dalamSlaCount}</div>
-                <div className="text-[9px] text-emerald-600 font-semibold">Patuh Tempoh</div>
+            {/* SLA 4 Grid Metrics - DESAIN WARNA PENUH (FULL COLOR SOLID GRADIENTS) */}
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 my-2.5">
+              {/* 1. STRETCH (< 48 Jam) */}
+              <div className="p-2.5 rounded-xl bg-gradient-to-br from-emerald-600 to-teal-700 text-white text-center shadow-md shadow-emerald-600/20 border border-emerald-500/40 relative overflow-hidden group hover:scale-[1.02] transition-transform">
+                <div className="text-[9px] font-extrabold uppercase tracking-wider text-emerald-100">&lt; 48 Jam</div>
+                <div className="text-base sm:text-lg font-black text-white font-mono my-0.5">{slaSummary.under48hCount}</div>
+                <div className="text-[8px] font-black px-1.5 py-0.5 rounded-md bg-white/20 backdrop-blur-xs text-white uppercase tracking-wider inline-block">
+                  STRETCH
+                </div>
               </div>
 
-              <div className="p-2.5 bg-white rounded-xl border border-amber-200 text-center shadow-2xs">
-                <div className="text-[10px] font-bold text-slate-500">≤ 48 Jam</div>
-                <div className="text-base font-black text-amber-700 font-mono">{hampirSlaCount}</div>
-                <div className="text-[9px] text-amber-600 font-semibold">Menghampiri</div>
+              {/* 2. TARGET (< 72 Jam) */}
+              <div className="p-2.5 rounded-xl bg-gradient-to-br from-blue-600 to-indigo-700 text-white text-center shadow-md shadow-blue-600/20 border border-blue-500/40 relative overflow-hidden group hover:scale-[1.02] transition-transform">
+                <div className="text-[9px] font-extrabold uppercase tracking-wider text-blue-100">&lt; 72 Jam</div>
+                <div className="text-base sm:text-lg font-black text-white font-mono my-0.5">{slaSummary.under72hCount}</div>
+                <div className="text-[8px] font-black px-1.5 py-0.5 rounded-md bg-white/20 backdrop-blur-xs text-white uppercase tracking-wider inline-block">
+                  TARGET
+                </div>
               </div>
 
-              <div className="p-2.5 bg-white rounded-xl border border-rose-200 text-center shadow-2xs">
-                <div className="text-[10px] font-bold text-slate-500">Lebih SLA</div>
-                <div className="text-base font-black text-rose-700 font-mono">{lebihSlaCount}</div>
-                <div className="text-[9px] text-rose-600 font-semibold">Tertunggak</div>
+              {/* 3. THRESHOLD (< 96 Jam) */}
+              <div className="p-2.5 rounded-xl bg-gradient-to-br from-amber-500 to-orange-600 text-white text-center shadow-md shadow-amber-500/20 border border-amber-400/40 relative overflow-hidden group hover:scale-[1.02] transition-transform">
+                <div className="text-[9px] font-extrabold uppercase tracking-wider text-amber-100">&lt; 96 Jam</div>
+                <div className="text-base sm:text-lg font-black text-white font-mono my-0.5">{slaSummary.under96hCount}</div>
+                <div className="text-[8px] font-black px-1.5 py-0.5 rounded-md bg-white/20 backdrop-blur-xs text-white uppercase tracking-wider inline-block">
+                  THRESHOLD
+                </div>
+              </div>
+
+              {/* 4. TIDAK PATUH (> 96 Jam) */}
+              <div className="p-2.5 rounded-xl bg-gradient-to-br from-rose-600 to-red-700 text-white text-center shadow-md shadow-rose-600/20 border border-rose-500/40 relative overflow-hidden group hover:scale-[1.02] transition-transform">
+                <div className="text-[9px] font-extrabold uppercase tracking-wider text-rose-100">&gt; 96 Jam</div>
+                <div className="text-base sm:text-lg font-black text-white font-mono my-0.5">{slaSummary.over96hCount}</div>
+                <div className="text-[8px] font-black px-1.5 py-0.5 rounded-md bg-white/20 backdrop-blur-xs text-white uppercase tracking-wider inline-block">
+                  TIDAK PATUH
+                </div>
               </div>
             </div>
 
             {/* Urgent SLA Cases Alert List */}
             <div className="mt-3 space-y-1.5">
               <div className="flex items-center justify-between text-[10px] font-black text-slate-500 uppercase tracking-wider">
-                <span>Perhatian Segera (SLA Kritikal)</span>
+                <span>Perhatian Segera (SLA Aduan)</span>
                 {activeOverdueCount > 0 && (
                   <span className="text-rose-600 flex items-center gap-1 font-bold">
                     <ClockAlert className="w-3 h-3" />
-                    {activeOverdueCount} Overdue
+                    {activeOverdueCount} Tidak Patuh (&gt;96j)
                   </span>
                 )}
               </div>
 
               {urgentCases.length === 0 ? (
                 <div className="p-3 rounded-xl bg-emerald-50 border border-emerald-200/80 text-center text-xs font-semibold text-emerald-800">
-                  Tahniah! Tiada kes aduan yang tertunggak atau kritikal SLA.
+                  Tahniah! Tiada kes aduan aktif yang memerlukan tindakan segera.
                 </div>
               ) : (
                 urgentCases.map((c) => (
@@ -455,20 +426,20 @@ export const AduanDashboardWidget: React.FC<AduanDashboardWidgetProps> = ({
                         </span>
                       </div>
                       <div className="text-[10px] text-slate-500 truncate mt-0.5">
-                        {c.tajuk || c.kategori}
+                        {c.sumberAduan} · {c.kategori}
                       </div>
                     </div>
 
                     <div className="shrink-0 text-right">
                       {c.isOverdue ? (
-                        <span className="inline-flex items-center gap-0.5 px-2 py-0.5 rounded-full text-[9px] font-black bg-rose-100 text-rose-800 border border-rose-200">
-                          <AlertTriangle className="w-2.5 h-2.5 text-rose-600" />
-                          Lebih SLA
+                        <span className="inline-flex items-center gap-0.5 px-2 py-0.5 rounded-full text-[9px] font-black bg-rose-600 text-white shadow-2xs">
+                          <AlertTriangle className="w-2.5 h-2.5 text-rose-200" />
+                          &gt;96j (Tidak Patuh)
                         </span>
                       ) : (
-                        <span className="inline-flex items-center gap-0.5 px-2 py-0.5 rounded-full text-[9px] font-black bg-amber-100 text-amber-800 border border-amber-200">
-                          <Clock className="w-2.5 h-2.5 text-amber-600" />
-                          {c.hoursRemaining}j Baki
+                        <span className={`inline-flex items-center gap-0.5 px-2 py-0.5 rounded-full text-[9px] font-black border ${c.slaResult.badgeBg} ${c.slaResult.badgeText} ${c.slaResult.badgeBorder}`}>
+                          <Clock className="w-2.5 h-2.5" />
+                          {c.slaResult.tierLabel} ({c.slaResult.elapsedHours}j)
                         </span>
                       )}
                     </div>

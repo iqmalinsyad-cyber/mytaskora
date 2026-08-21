@@ -65,6 +65,35 @@
         "createdBy": { "type": "string" },
         "workspaceId": { "type": "string" }
       }
+    },
+    "program_agihan_kpi": {
+      "title": "Program Agihan KPI",
+      "description": "Senarai bilangan program / aktiviti agihan yang berjaya dilaksanakan (KPI)",
+      "properties": {
+        "id": { "type": "string" },
+        "namaProgram": { "type": "string" },
+        "namaPic": { "type": "string" },
+        "lokasi": { "type": "string" },
+        "tarikh": { "type": "string" },
+        "catatan": { "type": "string" },
+        "createdBy": { "type": "string" },
+        "createdAt": { "type": "string" },
+        "updatedAt": { "type": "string" }
+      }
+    },
+    "calendar_events": {
+      "title": "Program & Kalendar",
+      "description": "Acara dan program kalendar",
+      "properties": {
+        "id": { "type": "string" },
+        "title": { "type": "string" },
+        "dateTime": { "type": "string" },
+        "category": { "type": "string" },
+        "status": { "type": "string" },
+        "pic": { "type": "string" },
+        "venue": { "type": "string" },
+        "notes": { "type": "string" }
+      }
     }
   }
 }

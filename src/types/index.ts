@@ -228,6 +228,18 @@ export interface TaskItem {
   workspaceId?: string;
 }
 
+export interface ProgramAgihanKPI {
+  id: string;
+  namaProgram: string; // 1. Nama Program / Aktiviti
+  namaPic: string; // 2. Nama PIC
+  lokasi: string; // 3. Lokasi Program / Aktiviti
+  tarikh: string; // 4. Tarikh Program / Aktiviti (YYYY-MM-DD atau format tarikh masa)
+  catatan?: string;
+  createdBy?: string;
+  createdAt?: string;
+  updatedAt?: string;
+}
+
 export type ProgramCategory = 'SJK' | 'Kemaskini' | 'Lain-lain';
 export type ProgramStatus = 'Diteruskan' | 'Batal';
 

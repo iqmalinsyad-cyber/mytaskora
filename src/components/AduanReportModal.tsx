@@ -22,6 +22,7 @@ import {
 } from 'lucide-react';
 import { AduanCase, AduanStatus, TindakanAduan } from '../types';
 import { printAduanCasesReport } from '../utils/printUtils';
+import { calculateCaseSLA, calculateSlaPerformanceSummary } from '../utils/slaUtils';
 
 interface AduanReportModalProps {
   isOpen: boolean;
@@ -65,6 +66,10 @@ export const AduanReportModal: React.FC<AduanReportModalProps> = ({
   const belumDiprosesCount = filteredCases.filter((c) => c.tindakan === 'Belum Di Proses' || !c.tindakan).length;
 
   const completionRate = total > 0 ? Math.round((selesaiCount / total) * 100) : 0;
+  
+  // SLA Performance Calculation
+  const slaSummary = calculateSlaPerformanceSummary(filteredCases);
+
   const reportGeneratedAt = new Date().toLocaleDateString('ms-MY', {
     day: 'numeric',
     month: 'long',
@@ -100,26 +105,35 @@ export const AduanReportModal: React.FC<AduanReportModalProps> = ({
       'Status Kes',
       'Tindakan',
       'Syor Bantuan',
+      'Prestasi SLA',
+      'Jumlah Jam SLA',
+      'Kepatuhan SLA',
       'Tarikh Aduan',
       'Tarikh Selesai',
       'Catatan Kes'
     ];
 
-    const rows = filteredCases.map((c) => [
-      `"${c.noRujukan || ''}"`,
-      `"${(c.namaPengadu || '').replace(/"/g, '""')}"`,
-      `"${c.noKadPengenalan || ''}"`,
-      `"${c.telefonPengadu || ''}"`,
-      `"${(c.alamat || '').replace(/"/g, '""')}"`,
-      `"${c.kategori || ''}"`,
-      `"${c.sumberAduan || ''}"`,
-      `"${c.status || ''}"`,
-      `"${c.tindakan || 'Belum Di Proses'}"`,
-      `"${c.syorBantuan || 'Tiada'}"`,
-      `"${c.tarikhAduan || ''}"`,
-      `"${c.tarikhSelesai || ''}"`,
-      `"${(c.catatanKes || '').replace(/"/g, '""')}"`
-    ]);
+    const rows = filteredCases.map((c) => {
+      const sla = calculateCaseSLA(c);
+      return [
+        `"${c.noRujukan || ''}"`,
+        `"${(c.namaPengadu || '').replace(/"/g, '""')}"`,
+        `"${c.noKadPengenalan || ''}"`,
+        `"${c.telefonPengadu || ''}"`,
+        `"${(c.alamat || '').replace(/"/g, '""')}"`,
+        `"${c.kategori || ''}"`,
+        `"${c.sumberAduan || ''}"`,
+        `"${c.status || ''}"`,
+        `"${c.tindakan || 'Belum Di Proses'}"`,
+        `"${c.syorBantuan || 'Tiada'}"`,
+        `"${sla.tierLabel}"`,
+        `"${sla.elapsedHours}"`,
+        `"${sla.isCompliant ? 'PATUH' : 'TIDAK PATUH'}"`,
+        `"${c.tarikhAduan || ''}"`,
+        `"${c.tarikhSelesai || ''}"`,
+        `"${(c.catatanKes || '').replace(/"/g, '""')}"`
+      ];
+    });
 
     const csvContent = 'data:text/csv;charset=utf-8,\uFEFF' + [headers.join(','), ...rows.map(r => r.join(','))].join('\n');
     const encodedUri = encodeURI(csvContent);
@@ -137,7 +151,7 @@ export const AduanReportModal: React.FC<AduanReportModalProps> = ({
 Dijana pada: ${reportGeneratedAt}
 Ruang Kerja: ${workspaceName}
 
-RINGKASAN STATISTIK:
+RINGKASAN STATUS KES:
 • Jumlah Kes: ${total}
 • Selesai: ${selesaiCount} (${completionRate}%)
 • Dalam Siasatan: ${dalamSiasatanCount}
@@ -145,13 +159,23 @@ RINGKASAN STATISTIK:
 • Perlu Maklumat (KIV): ${kivCount}
 • Ditolak: ${ditolakCount}
 
+PRESTASI SLA ADUAN (Piawaian Baharu 4 Peringkat - Maksimum 96 Jam):
+• < 48 Jam (STRETCH): ${slaSummary.under48hCount} kes (${total > 0 ? Math.round((slaSummary.under48hCount/total)*100) : 0}%)
+• < 72 Jam (TARGET): ${slaSummary.under72hCount} kes (${total > 0 ? Math.round((slaSummary.under72hCount/total)*100) : 0}%)
+• < 96 Jam (THRESHOLD): ${slaSummary.under96hCount} kes (${total > 0 ? Math.round((slaSummary.under96hCount/total)*100) : 0}%)
+• > 96 Jam (Tidak Patuh yang ditetapkan): ${slaSummary.over96hCount} kes (${total > 0 ? Math.round((slaSummary.over96hCount/total)*100) : 0}%)
+• Kadar Pematuhan SLA: ${slaSummary.complianceRate}%
+
 PECAHAN TINDAKAN:
 • Telah Diproses: ${telahDiprosesCount}
 • KIV: ${kivTindakanCount}
 • Belum Di Proses: ${belumDiprosesCount}
 
 SENARAI RINGKAS (${filteredCases.length} rekod):
-${filteredCases.slice(0, 15).map((c, i) => `${i + 1}. [${c.noRujukan}] ${c.namaPengadu} | ${c.kategori} | Status: ${c.status} | Tindakan: ${c.tindakan || 'Belum Di Proses'}`).join('\n')}
+${filteredCases.slice(0, 15).map((c, i) => {
+  const sla = calculateCaseSLA(c);
+  return `${i + 1}. [${c.noRujukan}] ${c.namaPengadu} | Sumber: ${c.sumberAduan || 'Awam'} | Status: ${c.status} | Tindakan: ${c.tindakan || 'Belum Di Proses'} | SLA: ${sla.tierLabel} (${sla.elapsedHours}j)`;
+}).join('\n')}
 ${filteredCases.length > 15 ? `...dan ${filteredCases.length - 15} rekod lagi.` : ''}
 `;
     navigator.clipboard.writeText(text);
@@ -308,6 +332,65 @@ ${filteredCases.length > 15 ? `...dan ${filteredCases.length - 15} rekod lagi.` 
             </div>
           </div>
 
+          {/* PRESTASI SLA ADUAN SECTION */}
+          <div className="p-4 sm:p-5 rounded-2xl bg-gradient-to-br from-slate-50 to-emerald-50/30 border border-emerald-200/80 space-y-3">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+              <div className="flex items-center gap-2">
+                <div className="w-7 h-7 rounded-lg bg-emerald-600 text-white flex items-center justify-center font-bold text-xs">
+                  <Clock className="w-4 h-4" />
+                </div>
+                <div>
+                  <h4 className="text-xs font-black uppercase tracking-wider text-slate-800">
+                    Prestasi SLA Aduan
+                  </h4>
+                  <p className="text-[11px] text-slate-500 font-medium">
+                    Penilaian tempoh masa aduan (Piawaian maksimum patuh: ≤ 96 Jam)
+                  </p>
+                </div>
+              </div>
+              <div className="flex items-center gap-2">
+                <span className="px-2.5 py-1 rounded-lg text-xs font-black bg-emerald-100 text-emerald-800 border border-emerald-300">
+                  {slaSummary.complianceRate}% Kadar Pematuhan SLA
+                </span>
+              </div>
+            </div>
+
+            {/* 4 SLA Tier KPI Cards */}
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 pt-1">
+              <div className="p-3 bg-white rounded-xl border border-emerald-200 shadow-2xs">
+                <span className="text-[10px] font-extrabold text-emerald-700 uppercase block">1. &lt; 48 Jam (STRETCH)</span>
+                <div className="text-lg font-black text-emerald-900 font-mono mt-0.5">{slaSummary.under48hCount}</div>
+                <span className="text-[10px] text-emerald-600 font-medium">
+                  STRETCH ({total > 0 ? Math.round((slaSummary.under48hCount/total)*100) : 0}%)
+                </span>
+              </div>
+
+              <div className="p-3 bg-white rounded-xl border border-blue-200 shadow-2xs">
+                <span className="text-[10px] font-extrabold text-blue-700 uppercase block">2. &lt; 72 Jam (TARGET)</span>
+                <div className="text-lg font-black text-blue-900 font-mono mt-0.5">{slaSummary.under72hCount}</div>
+                <span className="text-[10px] text-blue-600 font-medium">
+                  TARGET ({total > 0 ? Math.round((slaSummary.under72hCount/total)*100) : 0}%)
+                </span>
+              </div>
+
+              <div className="p-3 bg-white rounded-xl border border-amber-200 shadow-2xs">
+                <span className="text-[10px] font-extrabold text-amber-700 uppercase block">3. &lt; 96 Jam (THRESHOLD)</span>
+                <div className="text-lg font-black text-amber-900 font-mono mt-0.5">{slaSummary.under96hCount}</div>
+                <span className="text-[10px] text-amber-600 font-medium">
+                  THRESHOLD ({total > 0 ? Math.round((slaSummary.under96hCount/total)*100) : 0}%)
+                </span>
+              </div>
+
+              <div className="p-3 bg-white rounded-xl border border-rose-200 shadow-2xs">
+                <span className="text-[10px] font-extrabold text-rose-700 uppercase block">4. &gt; 96 Jam (Tidak Patuh)</span>
+                <div className="text-lg font-black text-rose-900 font-mono mt-0.5">{slaSummary.over96hCount}</div>
+                <span className="text-[10px] text-rose-600 font-bold">
+                  Tidak Patuh SLA ({total > 0 ? Math.round((slaSummary.over96hCount/total)*100) : 0}%)
+                </span>
+              </div>
+            </div>
+          </div>
+
           {/* Breakdown Section */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {/* Status Breakdown Box */}
@@ -378,62 +461,76 @@ ${filteredCases.length > 15 ? `...dan ${filteredCases.length - 15} rekod lagi.` 
                   <tr className="bg-slate-100/80 border-b border-slate-200 text-slate-700 font-black">
                     <th className="py-3 px-3">Bil</th>
                     <th className="py-3 px-3">No. Rujukan</th>
-                    <th className="py-3 px-3">Nama Pengadu & Kontak</th>
-                    <th className="py-3 px-3">Kategori & Sumber</th>
+                    <th className="py-3 px-3">NAMA</th>
+                    <th className="py-3 px-3">Sumber Aduan</th>
                     <th className="py-3 px-3">Status</th>
                     <th className="py-3 px-3">Tindakan</th>
+                    <th className="py-3 px-3">Prestasi SLA</th>
                     <th className="py-3 px-3">Tarikh</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100 font-medium text-slate-800">
                   {filteredCases.length === 0 ? (
                     <tr>
-                      <td colSpan={7} className="py-8 text-center text-slate-400 font-bold">
+                      <td colSpan={8} className="py-8 text-center text-slate-400 font-bold">
                         Tiada rekod aduan mengikut kriteria tapisan ini.
                       </td>
                     </tr>
                   ) : (
-                    filteredCases.map((c, idx) => (
-                      <tr key={c.id || idx} className="hover:bg-slate-50/80 transition-colors">
-                        <td className="py-2.5 px-3 font-mono text-slate-400">{idx + 1}</td>
-                        <td className="py-2.5 px-3">
-                          <span className="font-mono font-extrabold text-indigo-700 bg-indigo-50 px-2 py-0.5 rounded border border-indigo-100">
-                            {c.noRujukan}
-                          </span>
-                        </td>
-                        <td className="py-2.5 px-3">
-                          <div className="font-bold text-slate-900">{c.namaPengadu}</div>
-                          {c.telefonPengadu && (
-                            <div className="text-[10px] text-slate-400">{c.telefonPengadu}</div>
-                          )}
-                        </td>
-                        <td className="py-2.5 px-3">
-                          <div className="text-slate-800">{c.kategori}</div>
-                          <span className="text-[10px] font-bold text-slate-500 bg-slate-100 px-1.5 py-0.5 rounded">
-                            {c.sumberAduan}
-                          </span>
-                        </td>
-                        <td className="py-2.5 px-3">
-                          <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold ${
-                            c.status === 'Selesai'
-                              ? 'bg-emerald-100 text-emerald-800'
-                              : c.status === 'Ditolak'
-                              ? 'bg-rose-100 text-rose-800'
-                              : 'bg-amber-100 text-amber-800'
-                          }`}>
-                            {c.status}
-                          </span>
-                        </td>
-                        <td className="py-2.5 px-3">
-                          <span className="text-[11px] font-bold text-slate-700">
-                            {c.tindakan || 'Belum Di Proses'}
-                          </span>
-                        </td>
-                        <td className="py-2.5 px-3 text-[11px] text-slate-500 whitespace-nowrap">
-                          {c.tarikhAduan ? new Date(c.tarikhAduan).toLocaleDateString('ms-MY') : '-'}
-                        </td>
-                      </tr>
-                    ))
+                    filteredCases.map((c, idx) => {
+                      const sla = calculateCaseSLA(c);
+                      return (
+                        <tr key={c.id || idx} className="hover:bg-slate-50/80 transition-colors">
+                          <td className="py-2.5 px-3 font-mono text-slate-400">{idx + 1}</td>
+                          <td className="py-2.5 px-3">
+                            <span className="font-mono font-extrabold text-indigo-700 bg-indigo-50 px-2 py-0.5 rounded border border-indigo-100">
+                              {c.noRujukan}
+                            </span>
+                          </td>
+                          <td className="py-2.5 px-3">
+                            <div className="font-bold text-slate-900">{c.namaPengadu}</div>
+                            {c.telefonPengadu && (
+                              <div className="text-[10px] text-slate-400">{c.telefonPengadu}</div>
+                            )}
+                          </td>
+                          <td className="py-2.5 px-3">
+                            <span className="px-2.5 py-0.5 rounded-lg text-[11px] font-extrabold border bg-indigo-50 text-indigo-700 border-indigo-200">
+                              {c.sumberAduan || 'Aduan Awam'}
+                            </span>
+                          </td>
+                          <td className="py-2.5 px-3">
+                            <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold ${
+                              c.status === 'Selesai'
+                                ? 'bg-emerald-100 text-emerald-800'
+                                : c.status === 'Ditolak'
+                                ? 'bg-rose-100 text-rose-800'
+                                : 'bg-amber-100 text-amber-800'
+                            }`}>
+                              {c.status}
+                            </span>
+                          </td>
+                          <td className="py-2.5 px-3">
+                            <span className="text-[11px] font-bold text-slate-700">
+                              {c.tindakan || 'Belum Di Proses'}
+                            </span>
+                          </td>
+                          <td className="py-2.5 px-3">
+                            <div className="flex flex-col">
+                              <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10.5px] font-extrabold border ${sla.badgeBg} ${sla.badgeText} ${sla.badgeBorder}`}>
+                                <Clock className="w-3 h-3" />
+                                <span>{sla.tierLabel}</span>
+                              </span>
+                              <span className={`text-[9.5px] font-bold mt-0.5 ${sla.isCompliant ? 'text-emerald-700' : 'text-rose-700'}`}>
+                                {sla.elapsedHours} Jam · {sla.isCompliant ? 'Patuh SLA' : 'Tidak Patuh'}
+                              </span>
+                            </div>
+                          </td>
+                          <td className="py-2.5 px-3 text-[11px] text-slate-500 whitespace-nowrap">
+                            {c.tarikhAduan ? new Date(c.tarikhAduan).toLocaleDateString('ms-MY') : '-'}
+                          </td>
+                        </tr>
+                      );
+                    })
                   )}
                 </tbody>
               </table>

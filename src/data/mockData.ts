@@ -1,4 +1,4 @@
-import { Workspace, AduanCase, FormatTemplate, UserProfile, LinkItem } from '../types';
+import { Workspace, AduanCase, FormatTemplate, UserProfile, LinkItem, ProgramAgihanKPI } from '../types';
 
 export const INITIAL_WORKSPACES: Workspace[] = [
   {
@@ -563,4 +563,40 @@ export const INITIAL_PROGRAM_EVENTS = [
     createdBy: 'Sarah Adams',
     createdAt: '2026-08-04T11:00:00Z',
   },
+];
+
+export const INITIAL_PROGRAM_AGIHAN_KPI: ProgramAgihanKPI[] = [
+  {
+    id: 'agihan-1',
+    namaProgram: 'Program Agihan Bantuan Makanan Asasi & Keperluan Fakir Miskin',
+    namaPic: 'Ustaz Azman bin Mahmud',
+    lokasi: 'Masjid Al-Falah, Hulu Langat',
+    tarikh: '2026-08-10',
+    catatan: 'Agihan kepada 50 keluarga asnaf berdaftar.',
+    createdBy: 'Sarah Adams',
+    createdAt: '2026-08-01T08:30:00Z',
+    updatedAt: '2026-08-10T12:00:00Z',
+  },
+  {
+    id: 'agihan-2',
+    namaProgram: 'Agihan Skim Bantuan Persekolahan & Kelengkapan Pelajar Asnaf',
+    namaPic: 'Puan Siti Aminah binti Kassim',
+    lokasi: 'Dewan Komuniti Bandar Baru Bangi',
+    tarikh: '2026-08-14',
+    catatan: 'Penyerahan baucar kelengkapan sekolah dan beg kepada 120 pelajar.',
+    createdBy: 'Ahmad Khairul',
+    createdAt: '2026-08-02T09:00:00Z',
+    updatedAt: '2026-08-14T15:30:00Z',
+  },
+  {
+    id: 'agihan-3',
+    namaProgram: 'Program Agihan Dana Bantuan Perubatan & Peralatan Kesihatan',
+    namaPic: 'En. Muhammad Farhan bin Rosli',
+    lokasi: 'Pusat Rawatan Komuniti Kajang',
+    tarikh: '2026-08-18',
+    catatan: 'Agihan kerusi roda, lampin pakai buang dan bantuan bekalan susu khas.',
+    createdBy: 'Nurul Huda',
+    createdAt: '2026-08-05T11:15:00Z',
+    updatedAt: '2026-08-18T16:00:00Z',
+  }
 ];

@@ -23,6 +23,7 @@ import {
   Download
 } from 'lucide-react';
 import { AduanReportModal } from './AduanReportModal';
+import { calculateCaseSLA } from '../utils/slaUtils';
 import {
   AduanCase,
   AduanStatus,
@@ -156,43 +157,20 @@ export const AduanList: React.FC<AduanListProps> = ({
     return <span className="px-2.5 py-0.5 rounded-full bg-slate-100 text-slate-500 font-medium border border-slate-200 text-[11px]">Tiada</span>;
   };
 
-  // SLA Calculation: Auto nyatakan sudah berapa hari sejak didaftarkan (SLA berjalan sehingga selesai/ditolak)
+  // SLA Calculation: Mengikut 4 peringkat SLA (<48j, <72j, <96j, >96j Tidak Patuh)
   const getSlaDisplay = (aduan: AduanCase) => {
+    const sla = calculateCaseSLA(aduan);
     const isClosed = aduan.status === 'Selesai' || aduan.status === 'Ditolak';
-    const createdDate = new Date(aduan.tarikhAduan || aduan.updatedAt || Date.now());
-
-    if (isClosed) {
-      const endDate = aduan.tarikhSelesai ? new Date(aduan.tarikhSelesai) : new Date(aduan.updatedAt || Date.now());
-      const totalDays = Math.max(0, Math.round((endDate.getTime() - createdDate.getTime()) / (1000 * 3600 * 24)));
-      return (
-        <div className="flex flex-col">
-          <span className="inline-flex items-center gap-1 text-[11px] font-bold text-slate-600">
-            <CheckCircle2 className="w-3 h-3 text-emerald-500" />
-            <span>Selesai ({totalDays} hari)</span>
-          </span>
-          <span className="text-[10px] text-slate-400">SLA Ditutup</span>
-        </div>
-      );
-    }
-
-    // Active Running SLA
-    const now = new Date();
-    const activeDays = Math.max(0, Math.floor((now.getTime() - createdDate.getTime()) / (1000 * 3600 * 24)));
-
-    let badgeStyle = 'bg-emerald-50 text-emerald-700 border-emerald-200';
-    if (activeDays >= 7) {
-      badgeStyle = 'bg-rose-50 text-rose-700 border-rose-200';
-    } else if (activeDays >= 3) {
-      badgeStyle = 'bg-amber-50 text-amber-700 border-amber-200';
-    }
 
     return (
       <div className="flex flex-col">
-        <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[11px] font-extrabold border ${badgeStyle}`}>
-          <Clock className="w-3 h-3 animate-spin-slow" />
-          <span>{activeDays === 0 ? 'Hari Pertama (0 hari)' : `${activeDays} Hari`}</span>
+        <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[11px] font-extrabold border ${sla.badgeBg} ${sla.badgeText} ${sla.badgeBorder}`}>
+          <Clock className="w-3 h-3" />
+          <span>{sla.tierLabel}</span>
         </span>
-        <span className="text-[10px] text-slate-400 mt-0.5">Berjalan aktif</span>
+        <span className={`text-[10px] font-bold mt-0.5 ${sla.isCompliant ? 'text-emerald-700' : 'text-rose-700'}`}>
+          {sla.elapsedHours}j · {isClosed ? (sla.isCompliant ? 'Selesai (Patuh)' : 'Selesai (>96j)') : (sla.isCompliant ? 'Patuh SLA' : 'Tidak Patuh')}
+        </span>
       </div>
     );
   };
