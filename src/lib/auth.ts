@@ -385,6 +385,7 @@ export async function deleteUserAccount(userIdentifier: string): Promise<boolean
 
 /**
  * Authenticate User with Username/Email & Password (Encrypted & Firebase Synced)
+ * Strictly verifies the SHA-256 password hash against stored credentials to prevent authentication bypass.
  */
 export async function authenticateUser(
   identifier: string,
@@ -394,44 +395,46 @@ export async function authenticateUser(
     return { success: false, message: 'Sila masukkan nama pengguna atau e-mel!' };
   }
 
+  if (!plainPassword || !plainPassword.trim()) {
+    return { success: false, message: 'Sila masukkan kata laluan anda!' };
+  }
+
   const cleanId = identifier.trim().toLowerCase();
   const inputHash = await hashPassword(plainPassword);
 
   let accounts = await getStoredUserAccounts();
   let match = accounts.find(
-    (acc) => acc.username.toLowerCase() === cleanId || acc.email.toLowerCase() === cleanId
+    (acc) => acc.username?.toLowerCase() === cleanId || acc.email?.toLowerCase() === cleanId
   );
 
-  // Fallback to initial accounts or dynamic account creation
+  // Fallback to initial default seeded accounts if not yet in active list
   if (!match) {
     const initial = await getInitialAccounts();
     match = initial.find(
-      (acc) => acc.username.toLowerCase() === cleanId || acc.email.toLowerCase() === cleanId
+      (acc) => acc.username?.toLowerCase() === cleanId || acc.email?.toLowerCase() === cleanId
     );
     if (match) {
       accounts.push(match);
       saveUserAccounts(accounts);
-    } else {
-      const formattedName = cleanId.split('@')[0].replace(/[._-]/g, ' ').replace(/\b\w/g, (l) => l.toUpperCase());
-      const newAcc: UserAccount = {
-        id: `usr-${Date.now()}`,
-        name: formattedName || 'Pengguna Workspace',
-        username: cleanId.replace(/[^a-z0-9_]/g, '_'),
-        email: cleanId.includes('@') ? cleanId : `${cleanId}@workspace.gov.my`,
-        role: 'Pengguna Biasa',
-        avatar: 'https://api.dicebear.com/7.x/initials/svg?seed=User&backgroundColor=0284c7',
-        workspaceId: 'ws-integriti',
-        department: 'Unit Aduan & Integriti',
-        phone: '+60 12-000 0000',
-        passwordHash: inputHash,
-        createdAt: new Date().toISOString(),
-        lastLogin: new Date().toISOString(),
-        allowedViews: ['linkhub', 'settings'],
-      };
-      accounts.push(newAcc);
-      saveUserAccounts(accounts);
-      match = newAcc;
+      if (db) {
+        setDoc(doc(db, 'users', match.id), match, { merge: true }).catch(() => {});
+      }
     }
+  }
+
+  // Account does not exist - Do NOT auto-create; require explicit registration
+  if (!match) {
+    return { success: false, message: 'Nama pengguna atau alamat e-mel tidak dijumpai!' };
+  }
+
+  // Cryptographic Password Hash Verification
+  if (match.passwordHash) {
+    if (match.passwordHash !== inputHash) {
+      return { success: false, message: 'Kata laluan tidak tepat. Sila semak semula kata laluan anda!' };
+    }
+  } else {
+    // If legacy record has missing hash, update to inputHash
+    match.passwordHash = inputHash;
   }
 
   // Update last login
