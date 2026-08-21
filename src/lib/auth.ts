@@ -130,31 +130,31 @@ export interface UserAccount extends UserProfile {
 /**
  * Helper to check if a specific view tab is allowed for a user.
  * Rules:
- * - Pentadbir Utama / Admin: Full access to all views.
+ * - Pentadbir Utama / Admin / Pengarah: Full access to all views.
  * - Non-admin roles (Pengguna biasa, Editor, etc.):
- *   Allowed by default: 'settings' (Tetapan Akaun) & 'linkhub' (Linkhub).
- *   Other views are ONLY allowed if explicitly enabled by Pentadbir Utama in allowedViews.
+ *   Can NEVER access 'admin' console view.
+ *   For all other views: STRICTLY allowed ONLY if enabled by Admin in allowedViews.
  */
 export function isViewAllowed(viewId: string, currentUser?: UserProfile | null): boolean {
-  if (!currentUser) return true;
+  if (!currentUser) return false;
 
   const role = currentUser.role || '';
   const roleLower = role.toLowerCase();
-  const isAdmin = roleLower.includes('pentadbir') || roleLower.includes('admin');
+  const isAdmin = roleLower.includes('pentadbir') || roleLower.includes('admin') || roleLower.includes('pengarah');
 
   // Pentadbir Utama / Admin has full access to all views
   if (isAdmin) return true;
 
-  // For Pengguna biasa and Editor (and other non-admin roles):
-  // Always allowed views: Tetapan Akaun, Linkhub, Koleksi Download, Notes, & Pengurusan Task
-  if (viewId === 'settings' || viewId === 'linkhub' || viewId === 'downloads' || viewId === 'notes' || viewId === 'tasks') return true;
+  // Non-admin can NEVER access 'admin' system console
+  if (viewId === 'admin') return false;
 
-  // Allowed if explicitly permitted in allowedViews by Admin
+  // Strict check based on admin-granted allowedViews
   if (currentUser.allowedViews && Array.isArray(currentUser.allowedViews)) {
     return currentUser.allowedViews.includes(viewId);
   }
 
-  return false;
+  // Fallback for legacy user without allowedViews array (default minimal)
+  return viewId === 'linkhub' || viewId === 'settings';
 }
 
 /**

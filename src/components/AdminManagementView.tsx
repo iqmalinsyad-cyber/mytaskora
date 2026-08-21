@@ -702,7 +702,7 @@ export const AdminManagementView: React.FC<AdminManagementViewProps> = ({
                         <div className="flex items-center justify-end gap-1.5">
                           <button
                             onClick={() => {
-                              const initialViews = u.allowedViews && u.allowedViews.length > 0
+                              const initialViews = Array.isArray(u.allowedViews)
                                 ? u.allowedViews
                                 : (u.role === 'Pentadbir Utama' || u.role === 'Admin'
                                     ? ALL_SYSTEM_VIEWS.map(v => v.id)

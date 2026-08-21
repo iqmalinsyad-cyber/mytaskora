@@ -189,12 +189,14 @@ export interface LaporanAduanItem {
 export const ALL_SYSTEM_VIEWS = [
   { id: 'dashboard', label: 'Dashboard & KPI Utama', category: 'Utama' },
   { id: 'calendar', label: 'Kalendar Program', category: 'Utama' },
-  { id: 'aduan', label: 'Senarai Aduan', category: 'Utama' },
+  { id: 'aduan', label: 'Kes Aduan', category: 'Utama' },
   { id: 'laporan_aduan', label: 'Laporan Aduan', category: 'Utama' },
   { id: 'kanban', label: 'Paparan Aduan (Kanban)', category: 'Utama' },
   { id: 'tasks', label: 'Pengurusan Task (Task Management)', category: 'Utama' },
   { id: 'templates', label: 'Format / Template Catatan', category: 'Utama' },
   { id: 'linkhub', label: 'Linkhub Pautan Rujukan', category: 'Rujukan' },
+  { id: 'downloads', label: 'Download / Tools', category: 'Rujukan' },
+  { id: 'notes', label: 'Notebook Catatan', category: 'Rujukan' },
   { id: 'admin', label: 'Pentadbiran & Audit User (Admin)', category: 'Sistem' },
   { id: 'settings', label: 'Tetapan Akaun', category: 'Sistem' },
 ];

@@ -17,7 +17,7 @@ import { AiCopilotDrawer } from './components/AiCopilotDrawer';
 import { GlobalSearchModal } from './components/GlobalSearchModal';
 import { QuickActionModal } from './components/QuickActionModal';
 
-import { AduanCase, AduanStatus, FilterOptions, Workspace, UserProfile } from './types';
+import { AduanCase, AduanStatus, FilterOptions, Workspace, UserProfile, ALL_SYSTEM_VIEWS } from './types';
 import { aduanService } from './services/aduanService';
 import { CURRENT_USER } from './data/mockData';
 import { SettingsView } from './components/SettingsView';
@@ -107,9 +107,12 @@ export default function App() {
       console.error(e);
     }
     if (!isViewAllowed(activeTab, currentUser)) {
-      if (isViewAllowed('linkhub', currentUser)) {
+      const firstAllowed = ALL_SYSTEM_VIEWS.find(v => isViewAllowed(v.id, currentUser));
+      if (firstAllowed) {
+        setActiveTab(firstAllowed.id);
+      } else if (isViewAllowed('linkhub', currentUser)) {
         setActiveTab('linkhub');
-      } else {
+      } else if (isViewAllowed('settings', currentUser)) {
         setActiveTab('settings');
       }
     }
@@ -186,7 +189,7 @@ export default function App() {
             workspaceId: freshUser.workspaceId,
             department: freshUser.department,
             phone: freshUser.phone,
-            allowedViews: freshUser.allowedViews || ['linkhub'],
+            allowedViews: Array.isArray(freshUser.allowedViews) ? freshUser.allowedViews : ['linkhub', 'settings'],
           };
           setCurrentUser(updatedProfile);
           setAuthSession(updatedProfile);
@@ -460,7 +463,7 @@ export default function App() {
 
         {/* Dynamic Body Content */}
         <main className="p-3 sm:p-5 lg:p-6 flex-1 overflow-y-auto w-full space-y-4 lg:space-y-5">
-          {activeTab === 'dashboard' && (
+          {activeTab === 'dashboard' && isViewAllowed('dashboard', currentUser) && (
             <>
               {/* Featured Daily Brief Banner with Moving Ticker */}
               <DailyBriefBanner
@@ -504,7 +507,7 @@ export default function App() {
             </>
           )}
 
-          {activeTab === 'aduan' && (
+          {activeTab === 'aduan' && isViewAllowed('aduan', currentUser) && (
             <AduanList
               cases={aduanService.getCases({ ...filters, workspaceId: currentWorkspace.id })}
               filters={filters}
@@ -518,11 +521,11 @@ export default function App() {
             />
           )}
 
-          {activeTab === 'laporan_aduan' && (
+          {activeTab === 'laporan_aduan' && isViewAllowed('laporan_aduan', currentUser) && (
             <LaporanAduanView currentUser={currentUser} cases={workspaceCases} />
           )}
 
-          {activeTab === 'kanban' && (
+          {activeTab === 'kanban' && isViewAllowed('kanban', currentUser) && (
             <AduanKanban
               cases={workspaceCases}
               onSelectCase={(c) => setSelectedCase(c)}
@@ -531,7 +534,7 @@ export default function App() {
             />
           )}
 
-          {(activeTab === 'catatan' || activeTab === 'templates') && (
+          {(activeTab === 'catatan' || activeTab === 'templates') && isViewAllowed('templates', currentUser) && (
             <CatatanFormatView
               cases={workspaceCases}
               onAddNote={handleAddNote}
@@ -540,23 +543,23 @@ export default function App() {
             />
           )}
 
-          {activeTab === 'linkhub' && (
+          {activeTab === 'linkhub' && isViewAllowed('linkhub', currentUser) && (
             <LinkHubView currentUser={currentUser} />
           )}
 
-          {activeTab === 'downloads' && (
+          {activeTab === 'downloads' && isViewAllowed('downloads', currentUser) && (
             <DownloadCenterView currentUser={currentUser} />
           )}
 
-          {activeTab === 'notes' && (
+          {activeTab === 'notes' && isViewAllowed('notes', currentUser) && (
             <NotesView currentUser={currentUser} />
           )}
 
-          {activeTab === 'tasks' && (
+          {activeTab === 'tasks' && isViewAllowed('tasks', currentUser) && (
             <TaskManagementView currentUser={currentUser} />
           )}
 
-          {activeTab === 'calendar' && (
+          {activeTab === 'calendar' && isViewAllowed('calendar', currentUser) && (
             <CalendarView currentUser={currentUser} />
           )}
 
@@ -568,24 +571,23 @@ export default function App() {
               </div>
               <h3 className="text-lg font-extrabold text-slate-800">Akses Paparan Dihadkan</h3>
               <p className="text-xs text-slate-500 font-medium leading-relaxed">
-                Akaun anda ({currentUser?.role || 'Pengguna'}) secara lalai hanya dibenarkan mengakses <strong>Tetapan Akaun</strong> dan <strong>Linkhub</strong>. Sila hubungi Pentadbir Utama jika anda memerlukan akses fungsi tambahan.
+                Akaun anda (<strong className="text-slate-700">{currentUser?.name}</strong>, peranan: <strong className="text-slate-700">{currentUser?.role || 'Pengguna'}</strong>) tidak mempunyai kebenaran akses untuk fungsi <strong>"{ALL_SYSTEM_VIEWS.find(v => v.id === activeTab)?.label || activeTab}"</strong>. Sila hubungi Pentadbir Utama jika anda memerlukan kebenaran akses tambahan.
               </p>
-              <button
-                onClick={() => {
-                  if (isViewAllowed('linkhub', currentUser)) {
-                    setActiveTab('linkhub');
-                  } else {
-                    setActiveTab('settings');
-                  }
-                }}
-                className="px-5 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold transition-all shadow-xs"
-              >
-                Ke Paparan Linkhub
-              </button>
+              <div className="pt-2 flex flex-wrap items-center justify-center gap-2">
+                {ALL_SYSTEM_VIEWS.filter(v => isViewAllowed(v.id, currentUser)).map(view => (
+                  <button
+                    key={view.id}
+                    onClick={() => setActiveTab(view.id)}
+                    className="px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold transition-all shadow-xs"
+                  >
+                    Buka {view.label}
+                  </button>
+                ))}
+              </div>
             </div>
           )}
 
-          {activeTab === 'admin' && (
+          {activeTab === 'admin' && isViewAllowed('admin', currentUser) && (
             <AdminManagementView
               currentUser={currentUser}
               onOpenSupabaseModal={() => setIsSupabaseOpen(true)}
@@ -593,7 +595,7 @@ export default function App() {
             />
           )}
 
-          {activeTab === 'settings' && (
+          {activeTab === 'settings' && isViewAllowed('settings', currentUser) && (
             <SettingsView
               currentUser={currentUser}
               onUpdateUserProfile={handleUpdateUserProfile}

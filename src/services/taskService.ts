@@ -106,11 +106,12 @@ class TaskService {
   private deletedTaskIds: Set<string> = new Set();
   private listeners: Set<TasksListener> = new Set();
   private isFirebaseSubscribed = false;
+  private isDeletedSubscribed = false;
 
   constructor() {
     this.initDeletedIds();
     this.initLocal();
-    this.setupFirebaseSubscription();
+    this.setupFirebaseSubscriptions();
   }
 
   private initDeletedIds() {
@@ -163,7 +164,57 @@ class TaskService {
     }
   }
 
-  private setupFirebaseSubscription() {
+  private setupFirebaseSubscriptions() {
+    this.setupDeletedTasksSubscription();
+    this.setupTasksSubscription();
+  }
+
+  /**
+   * Realtime listener to sync deleted task tombstones across all clients and devices
+   */
+  private setupDeletedTasksSubscription() {
+    if (!db || this.isDeletedSubscribed) return;
+
+    try {
+      this.isDeletedSubscribed = true;
+      const deletedColRef = collection(db, 'deleted_tasks');
+
+      onSnapshot(
+        deletedColRef,
+        (snapshot) => {
+          if (!snapshot.empty) {
+            let changed = false;
+            snapshot.forEach((docSnap) => {
+              const id = docSnap.id;
+              if (!this.deletedTaskIds.has(id)) {
+                this.deletedTaskIds.add(id);
+                changed = true;
+              }
+            });
+
+            if (changed) {
+              this.saveDeletedIds();
+              const beforeCount = this.tasks.length;
+              this.tasks = this.tasks.filter((t) => !this.deletedTaskIds.has(t.id));
+              if (this.tasks.length !== beforeCount) {
+                this.notify();
+              }
+            }
+          }
+        },
+        (err) => {
+          console.warn('Firestore deleted_tasks subscription warning:', err?.message);
+        }
+      );
+    } catch (e) {
+      console.warn('Failed to subscribe to deleted_tasks collection:', e);
+    }
+  }
+
+  /**
+   * Realtime listener for active tasks collection in Firestore
+   */
+  private setupTasksSubscription() {
     if (!db || this.isFirebaseSubscribed) return;
 
     try {
@@ -175,10 +226,9 @@ class TaskService {
         async (snapshot) => {
           if (!snapshot.empty) {
             const loadedTasks: TaskItem[] = [];
-            const loadedIds = new Set<string>();
 
             snapshot.forEach((docSnap) => {
-              // If marked deleted, remove from Firestore and skip
+              // If marked deleted, remove from Firestore active collection and skip
               if (this.deletedTaskIds.has(docSnap.id)) {
                 if (db) {
                   deleteDoc(doc(db, 'tasks', docSnap.id)).catch(() => {});
@@ -202,26 +252,7 @@ class TaskService {
                 workspaceId: data.workspaceId || 'ws-integriti',
               };
               loadedTasks.push(item);
-              loadedIds.add(item.id);
             });
-
-            // Preserve locally created tasks within the last 2 minutes if not yet in snapshot and NOT deleted
-            const now = Date.now();
-            const pendingLocal = this.tasks.filter((t) => {
-              if (this.deletedTaskIds.has(t.id)) return false;
-              if (loadedIds.has(t.id)) return false;
-              const age = now - new Date(t.tarikhKemaskini || t.tarikhDicipta || 0).getTime();
-              return age < 120000;
-            });
-
-            if (pendingLocal.length > 0) {
-              for (const pending of pendingLocal) {
-                loadedTasks.unshift(pending);
-                if (db) {
-                  setDoc(doc(db, 'tasks', pending.id), cleanForFirestore(pending), { merge: true }).catch(() => {});
-                }
-              }
-            }
 
             // Sort by tarikhKemaskini descending
             loadedTasks.sort((a, b) => new Date(b.tarikhKemaskini || b.tarikhDicipta || 0).getTime() - new Date(a.tarikhKemaskini || a.tarikhDicipta || 0).getTime());
@@ -229,18 +260,13 @@ class TaskService {
             this.saveLocal();
             this.notify();
           } else {
-            // First time seeding if Firestore is empty
+            // First time seeding if Firestore is completely pristine
             const seeded = await isSystemSeeded();
             if (!seeded) {
+              await markSystemAsSeeded();
               await this.seedAllLocalToFirebase();
-            } else if (this.tasks.length > 0) {
-              // Sync in-memory tasks to Firestore (excluding deleted)
-              for (const t of this.tasks) {
-                if (!this.deletedTaskIds.has(t.id)) {
-                  setDoc(doc(db, 'tasks', t.id), cleanForFirestore(t), { merge: true }).catch(() => {});
-                }
-              }
             } else {
+              // If system was already seeded and snapshot is empty, it means all tasks were deleted!
               this.tasks = [];
               this.saveLocal();
               this.notify();
@@ -264,7 +290,7 @@ class TaskService {
           await setDoc(doc(db, 'tasks', t.id), cleanForFirestore(t));
         }
       }
-      console.log('Seeded tasks collection to Firestore successfully.');
+      console.log('Seeded initial tasks collection to Firestore successfully.');
     } catch (e) {
       console.error('Error seeding tasks to Firestore:', e);
     }
@@ -337,6 +363,7 @@ class TaskService {
       try {
         const payload = cleanForFirestore(newTask);
         await setDoc(doc(db, 'tasks', newTask.id), payload);
+        await deleteDoc(doc(db, 'deleted_tasks', newTask.id)).catch(() => {});
         console.log(`Task [${newTask.namaTask}] synced to Firestore successfully.`);
       } catch (e) {
         console.error('Failed to sync new task to Firestore:', e);
@@ -380,16 +407,23 @@ class TaskService {
   }
 
   public async deleteTask(id: string): Promise<boolean> {
+    // 1. Mark as deleted in local set & storage
     this.deletedTaskIds.add(id);
     this.saveDeletedIds();
 
+    // 2. Remove immediately from memory state & storage
     this.tasks = this.tasks.filter((t) => t.id !== id);
     this.notify();
 
+    // 3. Delete permanently from Firestore 'tasks' collection AND record tombstone in 'deleted_tasks'
     if (db) {
       try {
         await deleteDoc(doc(db, 'tasks', id));
-        console.log(`Task [${id}] permanently deleted from Firestore.`);
+        await setDoc(doc(db, 'deleted_tasks', id), {
+          id,
+          deletedAt: new Date().toISOString(),
+        });
+        console.log(`Task [${id}] permanently deleted & tombstone recorded in Firestore.`);
       } catch (e) {
         console.error('Failed to delete task from Firestore:', e);
       }
