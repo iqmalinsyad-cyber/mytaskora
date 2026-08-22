@@ -297,8 +297,8 @@ export const LoginModal: React.FC<LoginModalProps> = ({
           
           <div className="space-y-4 sm:space-y-5">
             
-            {/* Segmented Tab Switcher - ALWAYS VISIBLE ON ALL SCREENS */}
-            <div className="flex bg-slate-100 p-1 rounded-xl font-semibold text-xs text-slate-600">
+            {/* Segmented Tab Switcher - Premium Two-Tone Tab Styling */}
+            <div className="flex bg-slate-100/90 p-1.5 rounded-2xl border border-slate-200/70 gap-1.5 font-semibold text-xs shadow-inner">
               <button
                 type="button"
                 onClick={() => {
@@ -306,13 +306,15 @@ export const LoginModal: React.FC<LoginModalProps> = ({
                   setErrorMessage(null);
                   setSuccessMessage(null);
                 }}
-                className={`flex-1 py-2.5 rounded-lg flex items-center justify-center gap-1.5 transition-all cursor-pointer ${
+                className={`flex-1 py-2.5 px-3 rounded-xl flex items-center justify-center gap-2 transition-all cursor-pointer ${
                   mode === 'login' 
-                    ? 'bg-white text-indigo-600 shadow-xs font-bold' 
-                    : 'hover:text-slate-900'
+                    ? 'bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow-md shadow-blue-600/25 font-bold scale-[1.01]' 
+                    : 'text-slate-600 hover:text-blue-700 hover:bg-blue-50/60 font-medium'
                 }`}
               >
-                <LogIn className="w-4 h-4" />
+                <div className={`p-1 rounded-lg ${mode === 'login' ? 'bg-white/20' : 'bg-slate-200/60'}`}>
+                  <LogIn className="w-3.5 h-3.5" />
+                </div>
                 <span>Log Masuk</span>
               </button>
 
@@ -323,63 +325,89 @@ export const LoginModal: React.FC<LoginModalProps> = ({
                   setErrorMessage(null);
                   setSuccessMessage(null);
                 }}
-                className={`flex-1 py-2.5 rounded-lg flex items-center justify-center gap-1.5 transition-all cursor-pointer ${
+                className={`flex-1 py-2.5 px-3 rounded-xl flex items-center justify-center gap-2 transition-all cursor-pointer ${
                   mode === 'register' 
-                    ? 'bg-white text-indigo-600 shadow-xs font-bold' 
-                    : 'hover:text-slate-900'
+                    ? 'bg-gradient-to-r from-emerald-600 to-teal-600 text-white shadow-md shadow-emerald-600/25 font-bold scale-[1.01]' 
+                    : 'text-slate-600 hover:text-emerald-700 hover:bg-emerald-50/60 font-medium'
                 }`}
               >
-                <UserPlus className="w-4 h-4" />
+                <div className={`p-1 rounded-lg ${mode === 'register' ? 'bg-white/20' : 'bg-slate-200/60'}`}>
+                  <UserPlus className="w-3.5 h-3.5" />
+                </div>
                 <span>Daftar Akaun</span>
               </button>
             </div>
 
-            {/* Title Row */}
-            <div>
-              <h2 className="text-base sm:text-xl font-bold text-slate-900 tracking-tight">
-                {mode === 'login' ? 'Log Masuk Akaun Anda' : 'Daftar Akaun Baharu'}
-              </h2>
-              <p className="text-xs text-slate-500 font-medium mt-0.5">
-                {mode === 'login' ? 'Sila masukkan butiran log masuk anda' : 'Lengkapkan profil maklumat anda di bawah'}
-              </p>
+            {/* Title Row with Mode-specific Badge */}
+            <div className="flex items-start justify-between gap-2">
+              <div>
+                <div className="flex items-center gap-2">
+                  <h2 className="text-base sm:text-lg font-bold text-slate-900 tracking-tight">
+                    {mode === 'login' ? 'Log Masuk Akaun Anda' : 'Pendaftaran Pengguna Baharu'}
+                  </h2>
+                  <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full border uppercase tracking-wider ${
+                    mode === 'login'
+                      ? 'bg-blue-50 text-blue-700 border-blue-200'
+                      : 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                  }`}>
+                    {mode === 'login' ? 'Portal' : 'Akaun Baharu'}
+                  </span>
+                </div>
+                <p className="text-xs text-slate-500 font-medium mt-0.5">
+                  {mode === 'login' ? 'Sila masukkan butiran ID dan kata laluan anda' : 'Sila lengkapkan profil maklumat di bawah untuk pendaftaran rasmi'}
+                </p>
+              </div>
             </div>
 
             {/* Error & Success Messages */}
             {errorMessage && (
-              <div className="p-3 rounded-2xl bg-rose-50 border border-rose-200 text-rose-800 text-xs font-bold flex items-center gap-2 animate-fade-in">
+              <div className="p-3 rounded-xl bg-rose-50 border border-rose-200 text-rose-800 text-xs font-bold flex items-center gap-2 animate-fade-in shadow-xs">
                 <AlertCircle className="w-4 h-4 text-rose-600 shrink-0" />
                 <span>{errorMessage}</span>
               </div>
             )}
 
             {successMessage && (
-              <div className="p-3 rounded-2xl bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs font-bold flex items-center gap-2 animate-fade-in">
+              <div className="p-3 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs font-bold flex items-center gap-2 animate-fade-in shadow-xs">
                 <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
                 <span>{successMessage}</span>
               </div>
             )}
 
-            {/* MODE 1: LOG MASUK FORM */}
+            {/* MODE 1: LOG MASUK FORM (BLUE THEME) */}
             {mode === 'login' ? (
               <form onSubmit={handleLoginSubmit} className="space-y-3.5 text-xs">
                 <div>
-                  <label className="block text-[11px] font-bold text-slate-700 mb-1">
-                    Username / E-mel <span className="text-rose-500">*</span>
+                  <label className="block text-[11px] font-bold text-slate-700 mb-1.5 flex items-center justify-between">
+                    <span>Username / E-mel <span className="text-rose-500">*</span></span>
+                    <span className="text-[10px] font-normal text-slate-400">ID / Akaun</span>
                   </label>
-                  <input
-                    type="text"
-                    required
-                    disabled={isLockedOut}
-                    value={identifier}
-                    onChange={(e) => setIdentifier(e.target.value)}
-                    placeholder="Contoh: hafiz.fitri atau email@domain.com.my"
-                    className="w-full px-4 py-3 rounded-xl bg-slate-50 border border-slate-200 font-medium text-slate-800 placeholder:text-slate-400 focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all text-xs"
-                  />
+                  <div className="relative">
+                    <input
+                      type="text"
+                      required
+                      disabled={isLockedOut}
+                      value={identifier}
+                      onChange={(e) => setIdentifier(e.target.value)}
+                      placeholder="Contoh: hafiz.fitri atau email@domain.com.my"
+                      className="w-full pl-10 pr-4 py-3 rounded-xl bg-slate-50/80 border border-slate-200 font-medium text-slate-800 placeholder:text-slate-400 focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-600 transition-all text-xs shadow-2xs"
+                    />
+                    <div className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none">
+                      <User className="w-4 h-4 text-blue-500/70" />
+                    </div>
+                  </div>
                 </div>
 
-                <div className="relative">
-                  <label className="block text-[11px] font-bold text-slate-700 mb-1">
-                    Kata Laluan <span className="text-rose-500">*</span>
+                <div>
+                  <label className="block text-[11px] font-bold text-slate-700 mb-1.5 flex items-center justify-between">
+                    <span>Kata Laluan <span className="text-rose-500">*</span></span>
+                    <button
+                      type="button"
+                      onClick={() => setErrorMessage('Sila hubungi Admin untuk reset kata laluan.')}
+                      className="text-[10px] text-blue-600 hover:text-blue-800 font-semibold transition-colors"
+                    >
+                      Lupa kata laluan?
+                    </button>
                   </label>
                   <div className="relative">
                     <input
@@ -389,12 +417,15 @@ export const LoginModal: React.FC<LoginModalProps> = ({
                       value={password}
                       onChange={(e) => setPassword(e.target.value)}
                       placeholder="Masukkan kata laluan"
-                      className="w-full pl-4 pr-10 py-3 rounded-xl bg-slate-50 border border-slate-200 font-medium text-slate-800 placeholder:text-slate-400 focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all text-xs"
+                      className="w-full pl-10 pr-11 py-3 rounded-xl bg-slate-50/80 border border-slate-200 font-medium text-slate-800 placeholder:text-slate-400 focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-600 transition-all text-xs shadow-2xs"
                     />
+                    <div className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none">
+                      <Lock className="w-4 h-4 text-blue-500/70" />
+                    </div>
                     <button
                       type="button"
                       onClick={() => setShowPassword(!showPassword)}
-                      className="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+                      className="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 p-0.5 rounded transition-colors"
                     >
                       {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                     </button>
@@ -412,128 +443,157 @@ export const LoginModal: React.FC<LoginModalProps> = ({
                   </div>
                 )}
 
-                {/* Extra Row: Forgot password & Log in button */}
-                <div className="flex items-center justify-between pt-1 gap-2">
-                  <button
-                    type="button"
-                    onClick={() => setErrorMessage('Sila hubungi Admin untuk reset kata laluan.')}
-                    className="text-[11px] text-slate-500 hover:text-indigo-600 font-medium transition-colors"
-                  >
-                    Lupa kata laluan?
-                  </button>
-
+                {/* Action Row: Blue Submit button */}
+                <div className="pt-1">
                   <button
                     type="submit"
                     disabled={isLoading || isLockedOut}
-                    className="px-6 py-2.5 rounded-xl bg-gradient-to-r from-purple-600 via-indigo-600 to-indigo-700 hover:from-purple-700 hover:to-indigo-800 text-white font-bold text-xs shadow-md shadow-purple-500/25 hover:shadow-purple-500/40 transition-all flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
+                    className="w-full py-3 rounded-xl bg-gradient-to-r from-blue-600 via-blue-700 to-indigo-700 hover:from-blue-700 hover:via-blue-800 hover:to-indigo-800 text-white font-bold text-xs shadow-md shadow-blue-600/30 hover:shadow-blue-600/40 transition-all flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
                   >
                     {isLoading ? (
-                      <span>Memproses...</span>
+                      <span>Memproses Pengesahan...</span>
                     ) : isLockedOut ? (
-                      <span>Disekat ({lockoutTimer}s)</span>
+                      <span>Akses Disekat ({lockoutTimer}s)</span>
                     ) : (
                       <>
-                        <span>Log Masuk</span>
-                        <ArrowRight className="w-4 h-4" />
+                        <LogIn className="w-4 h-4" />
+                        <span>Log Masuk ke Sistem</span>
+                        <ArrowRight className="w-4 h-4 ml-0.5" />
                       </>
                     )}
                   </button>
                 </div>
 
-                {/* REGISTER TOGGLE BUTTON BELOW LOGIN FORM */}
-                <div className="pt-3 border-t border-slate-100 flex flex-col items-center justify-center gap-2 bg-indigo-50/50 p-3.5 rounded-xl border border-indigo-100/80">
-                  <span className="text-xs text-slate-600 font-medium">
-                    Belum mempunyai akaun pengguna?
-                  </span>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setMode('register');
-                      setErrorMessage(null);
-                      setSuccessMessage(null);
-                    }}
-                    className="w-full py-2.5 rounded-lg bg-white hover:bg-indigo-50 text-indigo-700 border border-indigo-200 font-bold text-xs shadow-2xs transition-all flex items-center justify-center gap-1.5 cursor-pointer"
-                  >
-                    <UserPlus className="w-4 h-4 text-indigo-600" />
-                    <span>Daftar Akaun Baharu Sekarang</span>
-                  </button>
+                {/* REGISTER CALL-TO-ACTION (GREEN THEME) */}
+                <div className="pt-3 border-t border-slate-100">
+                  <div className="flex flex-col items-center justify-center gap-2.5 bg-gradient-to-br from-emerald-50/90 via-teal-50/70 to-emerald-50/90 p-3.5 rounded-2xl border border-emerald-200/80 shadow-xs">
+                    <div className="flex items-center gap-1.5 text-xs text-emerald-900 font-semibold">
+                      <Sparkles className="w-3.5 h-3.5 text-emerald-600" />
+                      <span>Belum mempunyai akaun pengguna?</span>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setMode('register');
+                        setErrorMessage(null);
+                        setSuccessMessage(null);
+                      }}
+                      className="w-full py-2.5 px-4 rounded-xl bg-emerald-600 hover:bg-emerald-700 active:bg-emerald-800 text-white font-bold text-xs shadow-sm shadow-emerald-600/25 hover:shadow-md hover:shadow-emerald-600/35 transition-all flex items-center justify-center gap-2 cursor-pointer"
+                    >
+                      <UserPlus className="w-4 h-4" />
+                      <span>Daftar Akaun Baharu Sekarang</span>
+                      <ArrowRight className="w-3.5 h-3.5 opacity-80" />
+                    </button>
+                  </div>
                 </div>
-
-
 
               </form>
             ) : (
-              /* MODE 2: REGISTER FORM */
+              /* MODE 2: REGISTER FORM (GREEN THEME) */
               <form onSubmit={handleRegisterSubmit} className="space-y-3 text-xs">
                 <div>
-                  <label className="block text-[11px] font-bold text-slate-700 mb-1">
-                    Nama <span className="text-rose-500">*</span>
+                  <label className="block text-[11px] font-bold text-slate-700 mb-1 flex items-center justify-between">
+                    <span>Nama <span className="text-rose-500">*</span></span>
+                    <span className="text-[10px] font-normal text-slate-400">Nama Anda</span>
                   </label>
-                  <input
-                    type="text"
-                    required
-                    value={regName}
-                    onChange={(e) => setRegName(e.target.value)}
-                    placeholder="Contoh: Ahmad Razak"
-                    className="w-full px-4 py-2.5 rounded-xl bg-slate-50 border border-slate-200 font-medium text-slate-800 focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 text-xs"
-                  />
+                  <div className="relative">
+                    <input
+                      type="text"
+                      required
+                      value={regName}
+                      onChange={(e) => setRegName(e.target.value)}
+                      placeholder="Contoh: Ahmad Razak"
+                      className="w-full pl-10 pr-4 py-2.5 rounded-xl bg-slate-50/80 border border-slate-200 font-medium text-slate-800 placeholder:text-slate-400 focus:bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-600 text-xs transition-all shadow-2xs"
+                    />
+                    <div className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none">
+                      <User className="w-4 h-4 text-emerald-500/70" />
+                    </div>
+                  </div>
                 </div>
 
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
                   <div>
                     <label className="block text-[11px] font-bold text-slate-700 mb-1">
                       Username <span className="text-rose-500">*</span>
                     </label>
-                    <input
-                      type="text"
-                      required
-                      value={regUsername}
-                      onChange={(e) => setRegUsername(e.target.value)}
-                      placeholder="username"
-                      className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 border border-slate-200 font-mono text-slate-800 focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 text-xs"
-                    />
+                    <div className="relative">
+                      <input
+                        type="text"
+                        required
+                        value={regUsername}
+                        onChange={(e) => setRegUsername(e.target.value)}
+                        placeholder="username"
+                        className="w-full pl-9 pr-3.5 py-2.5 rounded-xl bg-slate-50/80 border border-slate-200 font-mono text-slate-800 placeholder:text-slate-400 focus:bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-600 text-xs transition-all shadow-2xs"
+                      />
+                      <div className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none">
+                        <AtSign className="w-3.5 h-3.5 text-emerald-500/70" />
+                      </div>
+                    </div>
                   </div>
                   <div>
                     <label className="block text-[11px] font-bold text-slate-700 mb-1">
                       E-mel <span className="text-rose-500">*</span>
                     </label>
-                    <input
-                      type="email"
-                      required
-                      value={regEmail}
-                      onChange={(e) => setRegEmail(e.target.value)}
-                      placeholder="nama@domain.com"
-                      className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 border border-slate-200 text-slate-800 focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 text-xs"
-                    />
+                    <div className="relative">
+                      <input
+                        type="email"
+                        required
+                        value={regEmail}
+                        onChange={(e) => setRegEmail(e.target.value)}
+                        placeholder="nama@domain.com"
+                        className="w-full pl-9 pr-3.5 py-2.5 rounded-xl bg-slate-50/80 border border-slate-200 text-slate-800 placeholder:text-slate-400 focus:bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-600 text-xs transition-all shadow-2xs"
+                      />
+                      <div className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none">
+                        <Mail className="w-3.5 h-3.5 text-emerald-500/70" />
+                      </div>
+                    </div>
                   </div>
                 </div>
 
                 <div>
-                  <label className="block text-[11px] font-bold text-slate-700 mb-1">
-                    Kata Laluan <span className="text-rose-500">*</span>
+                  <label className="block text-[11px] font-bold text-slate-700 mb-1 flex items-center justify-between">
+                    <span>Kata Laluan <span className="text-rose-500">*</span></span>
+                    <span className="text-[10px] font-normal text-slate-400">Min 6 aksara</span>
                   </label>
-                  <input
-                    type="password"
-                    required
-                    value={regPassword}
-                    onChange={(e) => setRegPassword(e.target.value)}
-                    placeholder="Kata Laluan (min 6 aksara)"
-                    className="w-full px-4 py-2.5 rounded-xl bg-slate-50 border border-slate-200 text-slate-800 focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 text-xs"
-                  />
+                  <div className="relative">
+                    <input
+                      type="password"
+                      required
+                      value={regPassword}
+                      onChange={(e) => setRegPassword(e.target.value)}
+                      placeholder="Cipta kata laluan keselamatan"
+                      className="w-full pl-10 pr-4 py-2.5 rounded-xl bg-slate-50/80 border border-slate-200 text-slate-800 placeholder:text-slate-400 focus:bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-600 text-xs transition-all shadow-2xs"
+                    />
+                    <div className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none">
+                      <Key className="w-4 h-4 text-emerald-500/70" />
+                    </div>
+                  </div>
                 </div>
 
-                <button
-                  type="submit"
-                  disabled={isLoading}
-                  className="w-full py-3 rounded-xl bg-gradient-to-r from-purple-600 via-indigo-600 to-indigo-700 text-white font-bold text-xs shadow-md shadow-purple-500/25 hover:shadow-purple-500/40 transition-all flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50 mt-2"
-                >
-                  {isLoading ? <span>Daftar Akaun...</span> : <span>Cipta Akaun Baharu</span>}
-                </button>
+                <div className="pt-1">
+                  <button
+                    type="submit"
+                    disabled={isLoading}
+                    className="w-full py-3 rounded-xl bg-gradient-to-r from-emerald-600 via-teal-600 to-emerald-700 hover:from-emerald-700 hover:via-teal-700 hover:to-emerald-800 text-white font-bold text-xs shadow-md shadow-emerald-600/30 hover:shadow-emerald-600/40 transition-all flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
+                  >
+                    {isLoading ? (
+                      <span>Mendaftar Akaun...</span>
+                    ) : (
+                      <>
+                        <UserPlus className="w-4 h-4" />
+                        <span>Cipta Akaun Baharu Sekarang</span>
+                        <ArrowRight className="w-4 h-4 ml-0.5" />
+                      </>
+                    )}
+                  </button>
+                </div>
 
                 {/* LOGIN TOGGLE BUTTON BELOW REGISTER FORM */}
-                <div className="pt-3 border-t border-slate-100 text-center">
-                  <p className="text-xs text-slate-600 font-medium">
-                    Sudah mempunyai akaun?{' '}
+                <div className="pt-3 border-t border-slate-100">
+                  <div className="flex flex-col items-center justify-center gap-2 bg-blue-50/70 p-3 rounded-xl border border-blue-200/70 text-center">
+                    <p className="text-xs text-blue-900 font-medium">
+                      Sudah mempunyai akaun berdaftar?
+                    </p>
                     <button
                       type="button"
                       onClick={() => {
@@ -541,12 +601,12 @@ export const LoginModal: React.FC<LoginModalProps> = ({
                         setErrorMessage(null);
                         setSuccessMessage(null);
                       }}
-                      className="font-bold text-indigo-600 hover:text-indigo-800 underline ml-1 inline-flex items-center gap-1 cursor-pointer"
+                      className="px-4 py-2 rounded-lg bg-white hover:bg-blue-50 text-blue-700 border border-blue-300 font-bold text-xs shadow-2xs hover:shadow-xs transition-all inline-flex items-center gap-1.5 cursor-pointer"
                     >
-                      <LogIn className="w-3.5 h-3.5" />
-                      Log Masuk Sekarang
+                      <LogIn className="w-3.5 h-3.5 text-blue-600" />
+                      <span>Kembali ke Log Masuk</span>
                     </button>
-                  </p>
+                  </div>
                 </div>
               </form>
             )}
