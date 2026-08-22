@@ -61,7 +61,66 @@ export const LoginModal: React.FC<LoginModalProps> = ({
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
 
+  // Cloudflare Turnstile state
+  const turnstileSiteKey = import.meta.env.VITE_CLOUDFLARE_TURNSTILE_SITE_KEY || '';
+  const [turnstileToken, setTurnstileToken] = useState<string | null>(null);
+  const [turnstileWidgetId, setTurnstileWidgetId] = useState<string | null>(null);
+  const turnstileContainerRef = React.useRef<HTMLDivElement>(null);
+
   const isSupabaseConnected = !!getSupabaseClient();
+
+  // Initialize Turnstile widget if site key is present
+  useEffect(() => {
+    if (!isOpen || !turnstileSiteKey) return;
+
+    let checkInterval: any;
+    const renderWidget = () => {
+      const turnstile = (window as any).turnstile;
+      if (turnstile && turnstileContainerRef.current) {
+        try {
+          if (turnstileWidgetId) {
+            turnstile.reset(turnstileWidgetId);
+          } else {
+            const widgetId = turnstile.render(turnstileContainerRef.current, {
+              sitekey: turnstileSiteKey,
+              callback: (token: string) => {
+                setTurnstileToken(token);
+                setErrorMessage(null);
+              },
+              'error-callback': () => {
+                setTurnstileToken(null);
+              },
+              'expired-callback': () => {
+                setTurnstileToken(null);
+              },
+              theme: 'light',
+              size: 'normal'
+            });
+            setTurnstileWidgetId(widgetId);
+          }
+          if (checkInterval) clearInterval(checkInterval);
+        } catch (e) {
+          console.warn('Turnstile render note:', e);
+        }
+      }
+    };
+
+    // Poll until turnstile API is loaded from CDN
+    if ((window as any).turnstile) {
+      renderWidget();
+    } else {
+      checkInterval = setInterval(() => {
+        if ((window as any).turnstile) {
+          renderWidget();
+          clearInterval(checkInterval);
+        }
+      }, 300);
+    }
+
+    return () => {
+      if (checkInterval) clearInterval(checkInterval);
+    };
+  }, [isOpen, turnstileSiteKey, mode]);
 
   useEffect(() => {
     let timer: any;
@@ -94,6 +153,11 @@ export const LoginModal: React.FC<LoginModalProps> = ({
 
     if (!identifier.trim() || !password) {
       setErrorMessage('Sila masukkan Username/E-mel dan Kata Laluan anda.');
+      return;
+    }
+
+    if (turnstileSiteKey && !turnstileToken) {
+      setErrorMessage('Sila lengkapkan pengesahan keselamatan ("Verify you are human") sebelum log masuk.');
       return;
     }
 
@@ -336,6 +400,17 @@ export const LoginModal: React.FC<LoginModalProps> = ({
                     </button>
                   </div>
                 </div>
+
+                {/* Cloudflare Turnstile Container (Verify You Are Human) */}
+                {turnstileSiteKey && (
+                  <div className="pt-2 pb-1 flex flex-col items-center justify-center">
+                    <div ref={turnstileContainerRef} className="min-h-[65px] flex items-center justify-center"></div>
+                    <div className="flex items-center gap-1.5 text-[10px] text-slate-400 mt-1">
+                      <ShieldCheck className="w-3.5 h-3.5 text-emerald-500" />
+                      <span>Dilindungi oleh Cloudflare Turnstile</span>
+                    </div>
+                  </div>
+                )}
 
                 {/* Extra Row: Forgot password & Log in button */}
                 <div className="flex items-center justify-between pt-1 gap-2">
