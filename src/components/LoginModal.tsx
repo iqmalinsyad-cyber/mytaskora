@@ -284,7 +284,7 @@ export const LoginModal: React.FC<LoginModalProps> = ({
                 <span className="text-xl sm:text-2xl font-extrabold tracking-tight text-slate-900 font-sans">ROAMDESK</span>
                 <span className="text-xl sm:text-2xl font-black text-indigo-600 tracking-tight">WORKSPACE</span>
                 <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-indigo-50 text-indigo-700 border border-indigo-100 uppercase tracking-wide">
-                  Versi 1.0
+                  VERSI 1.8.1
                 </span>
               </div>
               <p className="text-xs font-bold tracking-widest text-slate-500 uppercase">WORK . ACCESS . ANYWHERE</p>
@@ -372,7 +372,7 @@ export const LoginModal: React.FC<LoginModalProps> = ({
                     disabled={isLockedOut}
                     value={identifier}
                     onChange={(e) => setIdentifier(e.target.value)}
-                    placeholder="Contoh: admin.hulu atau email@domain.gov.my"
+                    placeholder="Contoh: hafiz.fitri atau email@domain.com.my"
                     className="w-full px-4 py-3 rounded-xl bg-slate-50 border border-slate-200 font-medium text-slate-800 placeholder:text-slate-400 focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all text-xs"
                   />
                 </div>
